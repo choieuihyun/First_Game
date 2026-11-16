@@ -1,0 +1,21 @@
+﻿key,value,note
+tick_rate,30,1초에 게임을 몇 번 진행하나
+chain_depth_limit,4,반응이 반응을 부르는 최대 단계
+contact_interval,0.5,계속 닿아 있을 때 몇 초마다 한 번 반응하나
+max_reactions_per_tick,20,한 번에 처리하는 반응 수 상한
+max_enemies,150,화면 속 적 수 상한
+max_zones,40,구름과 장판 수 상한
+max_projectiles,100,탄 수 상한
+slot_count,3,마법 세트 수
+player_hp,100,플레이어 체력
+player_speed,5,플레이어 이동 속도
+player_radius,0.4,플레이어 크기
+pickup_radius,1.2,룬을 줍는 거리
+rune_drop_chance,0.12,적이 룬을 떨어뜨릴 확률
+spawn_distance,9,적이 플레이어에서 얼마나 떨어져 나오나
+spawn_interval_start,1.0,처음 적 생성 간격 (초)
+spawn_interval_min,0.12,가장 짧은 적 생성 간격 (초)
+spawn_interval_decay_per_sec,0.0015,1초마다 생성 간격이 줄어드는 양
+spawn_count_step_min,2,몇 분마다 한 번에 나오는 적이 한 마리 늘어나나
+enemy_hp_growth,0.08,적 체력 증가 계수 (1 + 계수 x 분 x 분)
+grid_cell_size,2,판정용 격자 칸 크기

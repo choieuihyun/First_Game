@@ -1,0 +1,3 @@
+﻿id,name,hp,speed,radius,contact_dps,substance,color,shape
+grunt,일반 적,20,1.6,0.35,15,,#BF4D59,square
+soaked,젖은 적,26,1.4,0.35,15,water,#4D80BF,square

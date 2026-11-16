@@ -1,0 +1,7 @@
+{
+  "name": "Game.App",
+  "references": ["Game.Data", "Game.Core", "Game.View", "Unity.InputSystem"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "autoReferenced": false
+}

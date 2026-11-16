@@ -1,0 +1,10 @@
+{
+  "name": "Game.Tests.PlayMode",
+  "references": ["Game.Data", "Game.Core", "Game.View", "Game.App", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

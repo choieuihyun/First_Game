@@ -1,0 +1,5 @@
+﻿effect,order,piece,amount,radius,count,substance,duration
+fx_gas_explosion,1,explode,40,2.5,,fire,
+fx_electrolysis,1,chain,15,3,3,,
+fx_electrolysis,2,spawn_zone,,1.5,,hydrogen,4
+fx_hydrogen_blast,1,explode,80,4,,fire,

@@ -1,0 +1,8 @@
+{
+  "name": "Game.Core",
+  "references": ["Game.Data"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "noEngineReferences": true,
+  "autoReferenced": false
+}

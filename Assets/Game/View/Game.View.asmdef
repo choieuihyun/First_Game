@@ -1,0 +1,7 @@
+{
+  "name": "Game.View",
+  "references": ["Game.Data", "Game.Core", "Unity.InputSystem"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "autoReferenced": false
+}

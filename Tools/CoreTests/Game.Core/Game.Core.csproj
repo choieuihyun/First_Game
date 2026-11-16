@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Unity 밖에서 게임 규칙을 컴파일한다. netstandard2.1 과 C# 9 로 고정해 Unity 와 같은 수준을 강제한다 -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>Game.Core</AssemblyName>
+    <RootNamespace>Game</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../Assets/Game/Data/**/*.cs;../../../Assets/Game/Core/**/*.cs" />
+  </ItemGroup>
+</Project>

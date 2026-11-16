@@ -1,0 +1,2 @@
+﻿id,name,width,height,runes,enemies,terrain_substance,terrain_count,terrain_radius,start_delivery
+swamp,늪지,40,40,bolt|cloud|pool|fire|water|gas|lightning,grunt:2|soaked:1,water,8,1.5,bolt

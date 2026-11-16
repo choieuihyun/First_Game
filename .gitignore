@@ -7,6 +7,7 @@
 /[Uu]ser[Ss]ettings/
 /[Mm]emoryCaptures/
 *.csproj
+!/Tools/**/*.csproj
 *.sln
 *.slnx
 *.suo
@@ -19,3 +20,9 @@
 *.keystore
 *.unitypackage
 .DS_Store
+
+# Unity 밖 테스트 프로젝트 산출물
+/Tools/**/bin/
+/Tools/**/obj/
+# 작업 장부 (임시)
+/.superpowers/

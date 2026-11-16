@@ -1,0 +1,4 @@
+﻿id,name,a,b,priority,effect
+gas_explosion,가스 폭발,gas,fire,10,fx_gas_explosion
+electrolysis,전기분해,water,lightning,10,fx_electrolysis
+hydrogen_blast,수소 대폭발,hydrogen,fire,20,fx_hydrogen_blast

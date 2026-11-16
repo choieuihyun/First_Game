@@ -1,0 +1,6 @@
+﻿id,name,color,shape,duration,rune
+fire,불,#FF7326,triangle,3,true
+water,물,#4DA6FF,drop,6,true
+gas,독가스,#73FF59,cloud,4,true
+lightning,번개,#FFF24D,bolt,0.5,true
+hydrogen,수소,#E6E6FF,ring,4,false

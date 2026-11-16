@@ -37,26 +37,34 @@ namespace Game.Tests
         }
 
         [Test]
-        public void Stage_ParsesEnemyWeights()
+        public void Stage_ParsesEnemiesAndAbsorbList()
         {
             var s = TestData.Load().Stage("swamp");
-            Assert.AreEqual(2, s.Enemies.Count);
-            Assert.AreEqual("grunt", s.Enemies[0].Key);
-            Assert.AreEqual(2f, s.Enemies[0].Value);
-            Assert.AreEqual("soaked", s.Enemies[1].Key);
-            Assert.AreEqual(1f, s.Enemies[1].Value);
-            Assert.AreEqual(7, s.Runes.Count);
+            Assert.AreEqual(8, s.Enemies.Count);
+            Assert.AreEqual("slime", s.Enemies[0].Body);
+            Assert.AreEqual("water", s.Enemies[0].Substance);
+            Assert.AreEqual(5f, s.Enemies[0].Weight);
+            Assert.AreEqual("slime", s.Enemies[2].Body);
+            Assert.IsNull(s.Enemies[2].Substance);
+            Assert.AreEqual(7, s.Absorb.Count);
+            Assert.AreEqual("pool", s.Absorb[0].Key);
+            Assert.AreEqual(10f, s.Absorb[0].Value);
+            Assert.AreEqual(2, s.AbsorbIndex("cloud"));
+            Assert.AreEqual(-1, s.AbsorbIndex("hydrogen"));
+            Assert.AreEqual(-1, s.AbsorbIndex(null));
         }
 
         [Test]
-        public void Delivery_And_Enemy_AreParsed()
+        public void Delivery_And_Body_AreParsed()
         {
             var d = TestData.Load();
-            Assert.AreEqual(DeliveryKind.ZoneAtTarget, d.Delivery("cloud").Kind);
+            Assert.AreEqual(DeliveryKind.Zone, d.Delivery("cloud").Kind);
+            Assert.AreEqual(DeliveryKind.Bolt, d.Delivery("bolt").Kind);
             Assert.IsTrue(d.IsDelivery("bolt"));
             Assert.IsFalse(d.IsDelivery("fire"));
-            Assert.IsNull(d.Enemy("grunt").Substance);
-            Assert.AreEqual("water", d.Enemy("soaked").Substance);
+            Assert.AreEqual("bolt", d.Enemy("horn").Delivery);
+            Assert.AreEqual("slime", d.BodyForDelivery("pool").Id);
+            Assert.IsNull(d.BodyForDelivery("nope"));
         }
 
         [Test]
@@ -71,9 +79,9 @@ namespace Game.Tests
         public void DuplicateId_Throws()
         {
             var ex = Assert.Throws<DataException>(() => TestData.LoadWith("enemies",
-                "id,name,hp,speed,radius,contact_dps,substance,color,shape\n" +
-                "grunt,가,20,1,0.3,1,,#FFFFFF,square\ngrunt,나,20,1,0.3,1,,#FFFFFF,square\nsoaked,다,20,1,0.3,1,,#FFFFFF,square\n"));
-            Assert.That(ex.Message, Does.Contain("enemies").And.Contain("grunt"));
+                "id,name,delivery,hp,speed,radius,contact_dps,color,shape\n" +
+                "horn,가,bolt,20,1,0.3,1,#FFFFFF,square\nhorn,나,bolt,20,1,0.3,1,#FFFFFF,square\n"));
+            Assert.That(ex.Message, Does.Contain("enemies").And.Contain("horn"));
         }
 
         [Test]
@@ -99,18 +107,43 @@ namespace Game.Tests
         }
 
         [Test]
-        public void NonRuneSubstanceInStageRunes_Throws()
+        public void NonAbsorbableSubstanceInAbsorbList_Throws()
         {
-            string text = TestData.ReadCsv("stages").Replace("lightning,grunt", "lightning|hydrogen,grunt");
+            string text = TestData.ReadCsv("stages").Replace("lightning:5,", "lightning:5|hydrogen:5,");
             var ex = Assert.Throws<DataException>(() => TestData.LoadWith("stages", text));
             Assert.That(ex.Message, Does.Contain("hydrogen"));
+        }
+
+        [Test]
+        public void TraitNoEnemyCarries_Throws()
+        {
+            // 불을 지닌 적을 빼면 불은 얻을 수 없는 특징이 된다
+            string text = TestData.ReadCsv("stages").Replace("horn:fire:1|", "");
+            var ex = Assert.Throws<DataException>(() => TestData.LoadWith("stages", text));
+            Assert.That(ex.Message, Does.Contain("fire"));
+        }
+
+        [Test]
+        public void UnknownBodyInStage_Throws()
+        {
+            string text = TestData.ReadCsv("stages").Replace("slime::2", "dragon::2");
+            var ex = Assert.Throws<DataException>(() => TestData.LoadWith("stages", text));
+            Assert.That(ex.Message, Does.Contain("dragon"));
+        }
+
+        [Test]
+        public void MalformedStageEnemy_Throws()
+        {
+            string text = TestData.ReadCsv("stages").Replace("slime::2", "slime:2");
+            var ex = Assert.Throws<DataException>(() => TestData.LoadWith("stages", text));
+            Assert.That(ex.Message, Does.Contain("stages").And.Contain("enemies"));
         }
 
         [Test]
         public void EmptyRequiredNumber_Throws()
         {
             var ex = Assert.Throws<DataException>(() => TestData.LoadWith("enemies",
-                "id,name,hp,speed,radius,contact_dps,substance,color,shape\ngrunt,가,,1,0.3,1,,#FFFFFF,square\n"));
+                "id,name,delivery,hp,speed,radius,contact_dps,color,shape\nhorn,가,bolt,,1,0.3,1,#FFFFFF,square\n"));
             Assert.That(ex.Message, Does.Contain("enemies").And.Contain("hp"));
         }
 
@@ -151,7 +184,7 @@ namespace Game.Tests
         [Test]
         public void ZeroCaps_Throw()
         {
-            foreach (string key in new[] { "max_enemies", "max_zones", "max_projectiles", "max_reactions_per_tick", "chain_depth_limit" })
+            foreach (string key in new[] { "max_enemies", "max_zones", "max_projectiles", "max_reactions_per_tick", "chain_depth_limit", "upgrade_max" })
             {
                 var ex = Assert.Throws<DataException>(() => TestData.LoadWithBalance(key, "0"), key);
                 Assert.That(ex.Message, Does.Contain(key));

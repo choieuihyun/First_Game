@@ -66,8 +66,8 @@ namespace Game.Data
         public bool HasEnemy(string id) => id != null && enemyById.ContainsKey(id);
         public bool HasBalance(string key) => balance.ContainsKey(key);
 
-        /// <summary>룬 id 가 방식인지. 아니면 물질이다</summary>
-        public bool IsDelivery(string runeId) => runeId != null && deliveryById.ContainsKey(runeId);
+        /// <summary>특징 id 가 방식인지. 아니면 물질이다</summary>
+        public bool IsDelivery(string traitId) => traitId != null && deliveryById.ContainsKey(traitId);
 
         /// <summary>전역 수치 하나를 꺼낸다</summary>
         public float Balance(string key) => balance[key];
@@ -113,8 +113,7 @@ namespace Game.Data
                 switch (t.Get(r, "kind"))
                 {
                     case "bolt": kind = DeliveryKind.Bolt; break;
-                    case "zone_at_target": kind = DeliveryKind.ZoneAtTarget; break;
-                    case "zone_at_self": kind = DeliveryKind.ZoneAtSelf; break;
+                    case "zone": kind = DeliveryKind.Zone; break;
                     default: throw t.Error(r, "kind", "모르는 방식 종류입니다: " + t.Get(r, "kind"));
                 }
                 var def = new DeliveryDef(t.Get(r, "id"), t.Get(r, "name"), kind, t.GetFloat(r, "cooldown"),
@@ -185,9 +184,8 @@ namespace Game.Data
         {
             for (int r = 0; r < t.RowCount; r++)
             {
-                var def = new EnemyDef(t.Get(r, "id"), t.Get(r, "name"), t.GetFloat(r, "hp"), t.GetFloat(r, "speed"),
-                    t.GetFloat(r, "radius"), t.GetFloat(r, "contact_dps"), OrNull(t.Get(r, "substance")),
-                    t.Get(r, "color"), t.Get(r, "shape"));
+                var def = new EnemyDef(t.Get(r, "id"), t.Get(r, "name"), t.Get(r, "delivery"), t.GetFloat(r, "hp"), t.GetFloat(r, "speed"),
+                    t.GetFloat(r, "radius"), t.GetFloat(r, "contact_dps"), t.Get(r, "color"), t.Get(r, "shape"));
                 AddUnique(t, r, enemyById, def.Id, def);
                 enemies.Add(def);
             }
@@ -197,22 +195,44 @@ namespace Game.Data
         {
             for (int r = 0; r < t.RowCount; r++)
             {
-                var weights = new List<KeyValuePair<string, float>>();
-                foreach (string item in t.GetList(r, "enemies"))
+                var absorb = new List<KeyValuePair<string, float>>();
+                foreach (string item in t.GetList(r, "absorb"))
                 {
                     string[] parts = item.Split(':');
-                    if (parts.Length != 2 || !float.TryParse(parts[1].Trim(), NumberStyles.Float,
-                            CultureInfo.InvariantCulture, out float w))
-                        throw t.Error(r, "enemies", "적id:가중치 형식이어야 합니다: " + item);
-                    weights.Add(new KeyValuePair<string, float>(parts[0].Trim(), w));
+                    if (parts.Length != 2 || !TryNumber(parts[1], out float need))
+                        throw t.Error(r, "absorb", "특징id:필요한수 형식이어야 합니다: " + item);
+                    absorb.Add(new KeyValuePair<string, float>(parts[0].Trim(), need));
+                }
+                var stageEnemies = new List<StageEnemy>();
+                foreach (string item in t.GetList(r, "enemies"))
+                {
+                    // 몸종류:물질:가중치. 물질은 비워 둘 수 있다
+                    string[] parts = item.Split(':');
+                    if (parts.Length != 3 || !TryNumber(parts[2], out float weight))
+                        throw t.Error(r, "enemies", "몸종류:물질:가중치 형식이어야 합니다: " + item);
+                    stageEnemies.Add(new StageEnemy(parts[0].Trim(), OrNull(parts[1].Trim()), weight));
                 }
                 var def = new StageDef(t.Get(r, "id"), t.Get(r, "name"), t.GetFloat(r, "width"), t.GetFloat(r, "height"),
-                    t.GetList(r, "runes"), weights, OrNull(t.Get(r, "terrain_substance")),
+                    absorb, stageEnemies, OrNull(t.Get(r, "terrain_substance")),
                     (int)t.GetFloatOr(r, "terrain_count", 0f), t.GetFloatOr(r, "terrain_radius", 0f),
                     t.Get(r, "start_delivery"));
                 AddUnique(t, r, stageById, def.Id, def);
                 stages.Add(def);
             }
+        }
+
+        static bool TryNumber(string text, out float value)
+        {
+            return float.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+                && !float.IsNaN(value) && !float.IsInfinity(value);
+        }
+
+        /// <summary>그 방식을 지닌 몸 종류. 없으면 null</summary>
+        public EnemyDef BodyForDelivery(string deliveryId)
+        {
+            foreach (EnemyDef e in enemies)
+                if (e.Delivery == deliveryId) return e;
+            return null;
         }
 
         void LoadBalance(CsvTable t)

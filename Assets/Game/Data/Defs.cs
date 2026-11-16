@@ -21,7 +21,7 @@ namespace Game.Data
     }
 
     /// <summary>마법이 물질을 전달하는 방법</summary>
-    public enum DeliveryKind { Bolt, ZoneAtTarget, ZoneAtSelf }
+    public enum DeliveryKind { Bolt, Zone }
 
     /// <summary>방식 하나의 정의</summary>
     public sealed class DeliveryDef
@@ -94,25 +94,39 @@ namespace Game.Data
         }
     }
 
-    /// <summary>적 하나의 정의</summary>
+    /// <summary>적의 몸 종류 하나. 먹으면 이 몸이 지닌 방식을 얻는다</summary>
     public sealed class EnemyDef
     {
         public string Id { get; }
         public string Name { get; }
+        /// <summary>이 몸 종류를 많이 잡으면 얻는 방식</summary>
+        public string Delivery { get; }
         public float Hp { get; }
         public float Speed { get; }
         public float Radius { get; }
         public float ContactDps { get; }
-        /// <summary>처음부터 지닌 물질. 없으면 null</summary>
-        public string Substance { get; }
         public string Color { get; }
         public string Shape { get; }
 
-        public EnemyDef(string id, string name, float hp, float speed, float radius, float contactDps,
-            string substance, string color, string shape)
+        public EnemyDef(string id, string name, string delivery, float hp, float speed, float radius, float contactDps,
+            string color, string shape)
         {
-            Id = id; Name = name; Hp = hp; Speed = speed; Radius = radius; ContactDps = contactDps;
-            Substance = substance; Color = color; Shape = shape;
+            Id = id; Name = name; Delivery = delivery; Hp = hp; Speed = speed; Radius = radius; ContactDps = contactDps;
+            Color = color; Shape = shape;
+        }
+    }
+
+    /// <summary>스테이지에 나오는 적 한 종류. 몸 종류와 처음부터 지닌 물질의 짝</summary>
+    public sealed class StageEnemy
+    {
+        public string Body { get; }
+        /// <summary>없으면 null</summary>
+        public string Substance { get; }
+        public float Weight { get; }
+
+        public StageEnemy(string body, string substance, float weight)
+        {
+            Body = body; Substance = substance; Weight = weight;
         }
     }
 
@@ -123,24 +137,33 @@ namespace Game.Data
         public string Name { get; }
         public float Width { get; }
         public float Height { get; }
-        /// <summary>이 맵에서 떨어지는 룬. 방식 id 또는 물질 id</summary>
-        public IReadOnlyList<string> Runes { get; }
-        /// <summary>나오는 적과 가중치</summary>
-        public IReadOnlyList<KeyValuePair<string, float>> Enemies { get; }
+        /// <summary>이 맵에서 흡수할 수 있는 특징 (방식 id 또는 물질 id) 과 처음 필요한 처치 수</summary>
+        public IReadOnlyList<KeyValuePair<string, float>> Absorb { get; }
+        /// <summary>나오는 적</summary>
+        public IReadOnlyList<StageEnemy> Enemies { get; }
         /// <summary>지형이 지닌 물질. 없으면 null</summary>
         public string TerrainSubstance { get; }
         public int TerrainCount { get; }
         public float TerrainRadius { get; }
-        /// <summary>판을 시작할 때 첫 세트에 끼워져 있는 방식</summary>
+        /// <summary>판을 시작할 때 오른팔에 붙어 있는 방식</summary>
         public string StartDelivery { get; }
 
-        public StageDef(string id, string name, float width, float height, IReadOnlyList<string> runes,
-            IReadOnlyList<KeyValuePair<string, float>> enemies, string terrainSubstance, int terrainCount, float terrainRadius,
+        public StageDef(string id, string name, float width, float height, IReadOnlyList<KeyValuePair<string, float>> absorb,
+            IReadOnlyList<StageEnemy> enemies, string terrainSubstance, int terrainCount, float terrainRadius,
             string startDelivery)
         {
-            StartDelivery = startDelivery;
-            Id = id; Name = name; Width = width; Height = height; Runes = runes; Enemies = enemies;
+            Id = id; Name = name; Width = width; Height = height; Absorb = absorb; Enemies = enemies;
             TerrainSubstance = terrainSubstance; TerrainCount = terrainCount; TerrainRadius = terrainRadius;
+            StartDelivery = startDelivery;
+        }
+
+        /// <summary>특징이 흡수 목록의 몇 번째인지. 없으면 -1</summary>
+        public int AbsorbIndex(string trait)
+        {
+            if (trait == null) return -1;
+            for (int i = 0; i < Absorb.Count; i++)
+                if (Absorb[i].Key == trait) return i;
+            return -1;
         }
     }
 }

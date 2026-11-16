@@ -49,7 +49,7 @@ namespace Game.Tests.PlayMode
         }
 
         [UnityTest, Timeout(180000)]
-        public IEnumerator RuneChoice_FromHud_IsNeverLost()
+        public IEnumerator PartChoice_FromHud_IsNeverLost()
         {
             yield return LoadGame();
             var boot = Object.FindAnyObjectByType<GameBootstrap>();
@@ -58,16 +58,16 @@ namespace Game.Tests.PlayMode
             // 틱이 돌지 않는 프레임에 누른 선택도 전달돼야 한다. 여러 번 되풀이해 확인한다
             for (int round = 0; round < 5; round++)
             {
-                state.Pickups.Add(new PickupState { Id = state.NextId++, Pos = state.Player.Pos, RuneId = "fire" });
+                state.PendingTraits.Add("fire");
                 float end = Time.realtimeSinceStartup + 2f;
-                while (state.Phase != RunPhase.ChoosingRune && Time.realtimeSinceStartup < end) { state.Player.Hp = 100f; yield return null; }
-                Assert.AreEqual(RunPhase.ChoosingRune, state.Phase);
+                while (state.Phase != RunPhase.ChoosingPart && Time.realtimeSinceStartup < end) { state.Player.Hp = 100f; yield return null; }
+                Assert.AreEqual(RunPhase.ChoosingPart, state.Phase);
                 state.Slots[1].SubstanceId = null;
-                hud.ChooseRune(1);
+                hud.ChoosePart(1);
                 end = Time.realtimeSinceStartup + 1f;
-                while (state.Phase == RunPhase.ChoosingRune && Time.realtimeSinceStartup < end) yield return null;
+                while (state.Phase == RunPhase.ChoosingPart && Time.realtimeSinceStartup < end) yield return null;
                 Assert.AreEqual("fire", state.Slots[1].SubstanceId, "선택이 사라졌다 (" + round + "번째)");
-                Assert.AreNotEqual(RunPhase.ChoosingRune, state.Phase);
+                Assert.AreNotEqual(RunPhase.ChoosingPart, state.Phase);
             }
         }
 
@@ -78,26 +78,26 @@ namespace Game.Tests.PlayMode
         }
 
         [UnityTest, Timeout(180000)]
-        public IEnumerator PressingRuneButton_EquipsRune()
+        public IEnumerator PressingPartButton_AttachesTrait()
         {
             yield return LoadGame();
             var boot = Object.FindAnyObjectByType<GameBootstrap>();
             var hud = Object.FindAnyObjectByType<Hud>();
             RunState state = boot.Sim.State;
             state.SpawnTimer = 999999f;
-            state.Pickups.Add(new PickupState { Id = state.NextId++, Pos = state.Player.Pos, RuneId = "gas" });
-            yield return WaitForPhase(state, RunPhase.ChoosingRune, 2f);
-            Assert.AreEqual(RunPhase.ChoosingRune, state.Phase);
+            state.PendingTraits.Add("gas");
+            yield return WaitForPhase(state, RunPhase.ChoosingPart, 2f);
+            Assert.AreEqual(RunPhase.ChoosingPart, state.Phase);
 
             // 버튼이 없는 곳을 누르면 아무 일도 없다
             Assert.IsFalse(hud.PressAt(new Vector2(1f, 1f)));
-            // 2번 세트 버튼 한가운데를 누른다
+            // 오른팔 버튼 한가운데를 누른다
             Assert.IsTrue(hud.PressAt(hud.SlotButtonRect(1).center));
             yield return WaitForPhase(state, RunPhase.Playing, 1f);
             Assert.AreEqual("gas", state.Slots[1].SubstanceId);
 
-            state.Pickups.Add(new PickupState { Id = state.NextId++, Pos = state.Player.Pos, RuneId = "water" });
-            yield return WaitForPhase(state, RunPhase.ChoosingRune, 2f);
+            state.PendingTraits.Add("water");
+            yield return WaitForPhase(state, RunPhase.ChoosingPart, 2f);
             Assert.IsTrue(hud.PressAt(hud.DiscardButtonRect().center));
             yield return WaitForPhase(state, RunPhase.Playing, 1f);
             Assert.AreEqual(RunPhase.Playing, state.Phase);
@@ -124,13 +124,13 @@ namespace Game.Tests.PlayMode
         }
 
         [UnityTest, Timeout(180000)]
-        public IEnumerator WhileChoosingRune_ScreenDoesNotJitter()
+        public IEnumerator WhileChoosingPart_ScreenDoesNotJitter()
         {
             yield return LoadGame();
             var boot = Object.FindAnyObjectByType<GameBootstrap>();
             RunState state = boot.Sim.State;
-            state.Pickups.Add(new PickupState { Id = state.NextId++, Pos = state.Player.Pos, RuneId = "gas" });
-            yield return WaitForPhase(state, RunPhase.ChoosingRune, 2f);
+            state.PendingTraits.Add("gas");
+            yield return WaitForPhase(state, RunPhase.ChoosingPart, 2f);
             // 시간이 멈춘 동안에는 틱 사이 보간 위치가 고정돼야 한다. 흔들리면 화면이 떨린다
             for (int i = 0; i < 20; i++)
             {

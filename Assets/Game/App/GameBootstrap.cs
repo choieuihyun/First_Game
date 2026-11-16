@@ -21,7 +21,7 @@ namespace Game.App
         InputReader input;
         float tickSeconds;
         float accumulated;
-        // 누른 룬 선택을 틱에 전달할 때까지 쥐고 있는다. 틱이 돌지 않는 프레임에 눌러도 사라지지 않게 한다
+        // 누른 부위 선택을 틱에 전달할 때까지 쥐고 있는다. 틱이 돌지 않는 프레임에 눌러도 사라지지 않게 한다
         int heldChoice = TickInput.NoChoice;
         string stageId;
 
@@ -86,7 +86,7 @@ namespace Game.App
         void StartRun()
         {
             Sim = new Simulation(data, RunFactory.NewRun(data, stageId, (uint)Environment.TickCount));
-            hud.State = Sim.State;
+            hud.Sim = Sim;
             view.Clear();
             accumulated = 0f;
             heldChoice = TickInput.NoChoice;
@@ -125,7 +125,7 @@ namespace Game.App
             Vector2 move = Vector2.zero;
             if (Sim.State.Phase == RunPhase.Playing) move = input.ReadMove();
             else input.Reset();
-            int pressed = hud.ConsumeRuneChoice();
+            int pressed = hud.ConsumePartChoice();
             if (pressed != TickInput.NoChoice) heldChoice = pressed;
 
             accumulated += Time.unscaledDeltaTime;
@@ -134,14 +134,14 @@ namespace Game.App
             {
                 try
                 {
-                    Sim.Tick(new TickInput { Move = new NVec(move.x, move.y), RuneChoice = heldChoice });
+                    Sim.Tick(new TickInput { Move = new NVec(move.x, move.y), PartChoice = heldChoice });
                 }
                 catch (Exception e)
                 {
                     Fail(e);
                     return;
                 }
-                // 룬 선택은 한 번만 전달한다
+                // 부위 선택은 한 번만 전달한다
                 heldChoice = TickInput.NoChoice;
                 view.Play(Sim.Events);
                 foreach (RunEvent e in Sim.Events)
@@ -152,7 +152,7 @@ namespace Game.App
             // 상한을 넘겨 밀린 시간은 버린다
             if (accumulated > tickSeconds) accumulated = 0f;
 
-            // 룬을 고르거나 죽어서 시간이 멈춘 동안에는 보간하지 않는다. 보간하면 화면이 두 위치 사이를 오가며 떨린다
+            // 부위를 고르거나 죽어서 시간이 멈춘 동안에는 보간하지 않는다. 보간하면 화면이 두 위치 사이를 오가며 떨린다
             RenderAlpha = Sim.State.Phase == RunPhase.Playing ? accumulated / tickSeconds : 1f;
             view.Sync(Sim.State, RenderAlpha);
         }

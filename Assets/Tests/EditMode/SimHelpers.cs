@@ -19,20 +19,22 @@ namespace Game.Tests
             return sim;
         }
 
-        /// <summary>적 하나를 원하는 자리에 직접 넣는다</summary>
-        public static EnemyState AddEnemy(Simulation sim, GameData data, string defId, Vector2 pos, float hp = -1f)
+        /// <summary>적 하나를 원하는 자리에 직접 넣는다. substance 는 처음부터 지닌 물질</summary>
+        public static EnemyState AddEnemy(Simulation sim, GameData data, string body, Vector2 pos, float hp = -1f, string substance = null)
         {
-            EnemyDef def = data.Enemy(defId);
+            EnemyDef def = data.Enemy(body);
             var e = new EnemyState
             {
                 Id = sim.State.NextId++,
-                DefId = defId,
+                DefId = body,
                 Pos = pos,
                 Hp = hp > 0f ? hp : def.Hp,
-                Radius = def.Radius
+                Radius = def.Radius,
+                InnateSubstance = substance
             };
-            if (def.Substance != null) e.Substance = new Held { Id = def.Substance, TimeLeft = -1f, Depth = 0 };
+            if (substance != null) e.Substance = new Held { Id = substance, TimeLeft = -1f, Depth = 0 };
             sim.State.Enemies.Add(e);
+            sim.Grid.Rebuild(sim.State.Enemies);
             return e;
         }
 

@@ -10,8 +10,8 @@
 | 항목 | 내용 |
 |---|---|
 | 하는 일 | 마법, 적, 지형이 지닌 물질이 전장에서 만나면 반응을 일으킨다 |
-| 플레이어가 느끼는 것 | 마법 세 개를 어떻게 짜느냐에 따라 폭발과 연쇄가 터진다. 같은 조합도 적과 지형 배치에 따라 다르게 터진다 |
-| 관련 시스템 | 마법 (방식 + 물질), 적, 스테이지 지형, 룬 |
+| 플레이어가 느끼는 것 | 왼팔, 오른팔, 꼬리에 무엇을 붙였느냐에 따라 폭발과 연쇄가 터진다. 같은 조합도 적과 지형 배치에 따라 다르게 터진다 |
+| 관련 시스템 | 포식과 신체 (`시스템/포식/SYSTEM.md`), 적, 스테이지 지형 |
 
 ---
 
@@ -62,7 +62,7 @@
 
 ### 새 반응을 추가하는 방법 (코드 수정 없음)
 
-1. 새 물질이 필요하면 `substances.csv` 에 한 행 (모양은 다른 물질과 겹치지 않게. 룬으로 떨어지면 rune 을 true 로 하고 `stages.csv` 의 runes 에 추가)
+1. 새 물질이 필요하면 `substances.csv` 에 한 행 (모양은 다른 물질과 겹치지 않게. 적에게서 흡수할 수 있는 물질이면 rune 을 true 로 하고, `stages.csv` 의 absorb 와 enemies 에 추가)
 2. `effects.csv` 에 결과를 적는다. 같은 effect 이름으로 여러 행을 쓰면 order 순서대로 실행된다
 3. `reactions.csv` 에 한 행: 만나는 두 물질과 effect 이름
 4. `Tools/verify.sh core` 를 돌린다. 틀린 곳이 있으면 파일과 행을 짚어 준다
@@ -87,7 +87,7 @@
 |---|---|
 | `Assets/Game/Core/ReactionResolver.cs` | 접촉 규칙, 반응 큐, 효과 조각 실행, 영역 생성 |
 | `Assets/Game/Core/Simulation.cs` | 틱 순서. 탄과 영역이 언제 접촉을 일으키는지 |
-| `Assets/Game/Core/SpellCaster.cs` | 마법 세트 쿨타임과 자동 발사 |
+| `Assets/Game/Core/SpellCaster.cs` | 부위별 쿨타임과 자동 발사 |
 | `Assets/Game/Data/GameData.cs`, `GameDataValidator.cs` | CSV 읽기와 검사 |
 | `Assets/Tests/EditMode/ReactionTests.cs` | 반응 규칙 테스트 |
 

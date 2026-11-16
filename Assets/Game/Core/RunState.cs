@@ -17,12 +17,25 @@ namespace Game.Core
     }
 
     /// <summary>판의 진행 단계</summary>
-    public enum RunPhase { Playing, ChoosingRune, Dead }
+    public enum RunPhase { Playing, ChoosingPart, Dead }
+
+    /// <summary>신체 부위 번호. 마법 세트 하나가 부위 하나다</summary>
+    public static class BodyPart
+    {
+        public const int LeftArm = 0;
+        public const int RightArm = 1;
+        public const int Tail = 2;
+        public const int Count = 3;
+    }
 
     public sealed class PlayerState
     {
         public Vector2 Pos;
         public float Hp;
+        /// <summary>앞 방향. 마지막으로 움직인 쪽이다. 팔의 왼쪽과 오른쪽, 꼬리의 뒤가 이것으로 정해진다</summary>
+        public Vector2 Facing = new Vector2(0f, 1f);
+        /// <summary>최근에 지나온 자리. 맨 앞이 가장 오래된 자리다. 꼬리가 여기에 남긴다</summary>
+        public List<Vector2> Trail = new List<Vector2>();
     }
 
     public sealed class EnemyState
@@ -33,6 +46,8 @@ namespace Game.Core
         public float Hp;
         public float Radius;
         public Held Substance;
+        /// <summary>처음부터 지닌 물질. 잡았을 때 포식 게이지는 이것으로 센다. 없으면 null</summary>
+        public string InnateSubstance;
     }
 
     public sealed class ProjectileState
@@ -64,19 +79,14 @@ namespace Game.Core
         public bool Removed;
     }
 
-    public sealed class PickupState
-    {
-        public int Id;
-        public Vector2 Pos;
-        public string RuneId;
-    }
-
-    /// <summary>마법 세트 하나. 방식과 물질을 끼운다</summary>
+    /// <summary>신체 부위 하나에 붙은 마법. 방식과 물질, 그리고 각각의 강화 단계</summary>
     public sealed class SpellSlot
     {
         public string DeliveryId;
         public string SubstanceId;
         public float Cooldown;
+        public int DeliveryLevel;
+        public int SubstanceLevel;
     }
 
     /// <summary>일어나기로 정해졌지만 아직 처리하지 않은 반응</summary>
@@ -102,9 +112,12 @@ namespace Game.Core
         public List<EnemyState> Enemies = new List<EnemyState>();
         public List<ProjectileState> Projectiles = new List<ProjectileState>();
         public List<ZoneState> Zones = new List<ZoneState>();
-        public List<PickupState> Pickups = new List<PickupState>();
-        /// <summary>주웠지만 아직 어디에 끼울지 고르지 않은 룬</summary>
-        public List<string> PendingRunes = new List<string>();
+        /// <summary>흡수했지만 아직 어느 부위에 붙일지 고르지 않은 특징</summary>
+        public List<string> PendingTraits = new List<string>();
+        /// <summary>특징별로 지금까지 채운 포식 게이지. 순서는 스테이지의 absorb 목록과 같다</summary>
+        public int[] AbsorbCount = new int[0];
+        /// <summary>특징별로 지금까지 얻은 횟수. 얻을수록 다음에 필요한 수가 늘어난다</summary>
+        public int[] AbsorbAcquired = new int[0];
         public List<PendingReaction> ReactionQueue = new List<PendingReaction>();
         public float SpawnTimer;
         public int Kills;

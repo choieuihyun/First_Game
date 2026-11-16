@@ -20,7 +20,7 @@ namespace Game.Tests
             data = TestData.Load();
             sim = SimHelpers.NewSim(data, quiet: true);
             state = sim.State;
-            state.Slots[0].DeliveryId = null;
+            state.Slots[1].DeliveryId = null;
             // 플레이어에게서 멀리 떨어진 시험 장소
             far = state.Player.Pos + new Vector2(12f, 0f);
         }
@@ -30,11 +30,12 @@ namespace Game.Tests
             return new Held { Id = id, TimeLeft = data.Substance(id).Duration, Depth = depth };
         }
 
-        EnemyState Enemy(string def, Vector2 pos)
+        EnemyState Enemy(string kind, Vector2 pos)
         {
-            EnemyState e = SimHelpers.AddEnemy(sim, data, def, pos, 1000f);
-            sim.Grid.Rebuild(state.Enemies);
-            return e;
+            // soaked 는 물을 지닌 점액형, 그 밖에는 물질 없는 뿔형
+            return kind == "soaked"
+                ? SimHelpers.AddEnemy(sim, data, "slime", pos, 1000f, "water")
+                : SimHelpers.AddEnemy(sim, data, "horn", pos, 1000f);
         }
 
         ZoneState Zone(string substance, Vector2 pos, float radius = 1.8f)
@@ -58,8 +59,8 @@ namespace Game.Tests
         public void Fire_OnGasCloud_Explodes_AndCloudVanishes()
         {
             ZoneState gas = Zone("gas", far);
-            EnemyState near = Enemy("grunt", far + new Vector2(2f, 0f));
-            EnemyState away = Enemy("grunt", far + new Vector2(0f, 5f));
+            EnemyState near = Enemy("horn", far + new Vector2(2f, 0f));
+            EnemyState away = Enemy("horn", far + new Vector2(0f, 5f));
             Assert.IsTrue(sim.Resolver.ContactZone(gas, Sub("fire"), far));
             List<RunEvent> events = TickCollect();
             Assert.IsFalse(state.Zones.Contains(gas));
@@ -73,10 +74,10 @@ namespace Game.Tests
         [Test]
         public void FireBolt_FliesIntoGasCloud_AndExplodes()
         {
-            state.Slots[0].DeliveryId = "bolt";
-            state.Slots[0].SubstanceId = "fire";
+            state.Slots[1].DeliveryId = "bolt";
+            state.Slots[1].SubstanceId = "fire";
             Zone("gas", state.Player.Pos + new Vector2(3f, 0f), 1f);
-            Enemy("grunt", state.Player.Pos + new Vector2(8f, 0f));
+            Enemy("horn", state.Player.Pos + new Vector2(8f, 0f));
             TickCollect(15);
             Assert.AreEqual(1, state.ReactionCount);
             Assert.AreEqual(0, state.Zones.Count);
@@ -87,10 +88,10 @@ namespace Game.Tests
         public void Lightning_OnSoakedEnemy_ChainsAndLeavesHydrogen()
         {
             EnemyState soaked = Enemy("soaked", far);
-            EnemyState a = Enemy("grunt", far + new Vector2(1.5f, 0f));
-            EnemyState b = Enemy("grunt", far + new Vector2(3f, 0f));
-            EnemyState c = Enemy("grunt", far + new Vector2(4.5f, 0f));
-            EnemyState tooFar = Enemy("grunt", far + new Vector2(0f, -8f));
+            EnemyState a = Enemy("horn", far + new Vector2(1.5f, 0f));
+            EnemyState b = Enemy("horn", far + new Vector2(3f, 0f));
+            EnemyState c = Enemy("horn", far + new Vector2(4.5f, 0f));
+            EnemyState tooFar = Enemy("horn", far + new Vector2(0f, -8f));
             Assert.IsTrue(sim.Resolver.ContactEnemy(soaked, Sub("lightning")));
             Assert.IsTrue(soaked.Substance.IsEmpty);
             List<RunEvent> events = TickCollect();
@@ -112,7 +113,7 @@ namespace Game.Tests
         public void ThreeStepChain_WaterLightningFire()
         {
             EnemyState soaked = Enemy("soaked", far);
-            EnemyState bystander = Enemy("grunt", far + new Vector2(3.5f, 0f));
+            EnemyState bystander = Enemy("horn", far + new Vector2(3.5f, 0f));
             sim.Resolver.ContactEnemy(soaked, Sub("lightning"));
             TickCollect();
             ZoneState hydrogen = state.Zones[0];
@@ -139,7 +140,7 @@ namespace Game.Tests
         public void BurningEnemy_InsideGasCloud_Explodes()
         {
             ZoneState gas = Zone("gas", far);
-            EnemyState e = Enemy("grunt", far);
+            EnemyState e = Enemy("horn", far);
             e.Substance = Sub("fire");
             TickCollect(2);
             Assert.IsFalse(state.Zones.Contains(gas));
@@ -155,7 +156,7 @@ namespace Game.Tests
         {
             ZoneState gas = Zone("gas", far);
             Assert.IsFalse(sim.Resolver.ContactZone(gas, Sub("fire", 4), far));
-            EnemyState e = Enemy("grunt", far + new Vector2(6f, 0f));
+            EnemyState e = Enemy("horn", far + new Vector2(6f, 0f));
             e.Substance = new Held { Id = "gas", TimeLeft = 4f, Depth = 4 };
             Assert.IsFalse(sim.Resolver.ContactEnemy(e, Sub("fire")));
             Assert.AreEqual("fire", e.Substance.Id);
@@ -217,7 +218,7 @@ namespace Game.Tests
         public void ZoneReactingWithEnemy_ConsumesBoth()
         {
             ZoneState hydrogen = Zone("hydrogen", far, 1.5f);
-            EnemyState burning = Enemy("grunt", far);
+            EnemyState burning = Enemy("horn", far);
             burning.Substance = Sub("fire");
             TickCollect(2);
             Assert.IsFalse(state.Zones.Contains(hydrogen));
@@ -228,7 +229,7 @@ namespace Game.Tests
         public void ExplosionKill_CountsAsKill()
         {
             ZoneState gas = Zone("gas", far);
-            EnemyState weak = SimHelpers.AddEnemy(sim, data, "grunt", far + new Vector2(2f, 0f), 30f);
+            EnemyState weak = SimHelpers.AddEnemy(sim, data, "horn", far + new Vector2(2f, 0f), 30f);
             sim.Grid.Rebuild(state.Enemies);
             sim.Resolver.ContactZone(gas, Sub("fire"), far);
             sim.Tick(TickInput.None);

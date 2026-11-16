@@ -21,8 +21,12 @@ namespace Game.Tests
             Assert.AreEqual(100f, s.Player.Hp);
             Assert.AreEqual(RunPhase.Playing, s.Phase);
             Assert.AreEqual(3, s.Slots.Length);
-            Assert.AreEqual("bolt", s.Slots[0].DeliveryId);
-            Assert.IsNull(s.Slots[1].DeliveryId);
+            Assert.AreEqual("bolt", s.Slots[BodyPart.RightArm].DeliveryId);
+            Assert.AreEqual(1, s.Slots[BodyPart.RightArm].DeliveryLevel);
+            Assert.IsNull(s.Slots[BodyPart.LeftArm].DeliveryId);
+            Assert.IsNull(s.Slots[BodyPart.Tail].DeliveryId);
+            Assert.AreEqual(new Vector2(0f, 1f), s.Player.Facing);
+            Assert.AreEqual(7, s.AbsorbCount.Length);
             Assert.AreEqual(8, s.Zones.Count);
             foreach (ZoneState z in s.Zones)
             {
@@ -66,7 +70,7 @@ namespace Game.Tests
         public void Enemies_SpawnInsideMap_AndApproach()
         {
             Simulation sim = SimHelpers.NewSim(data);
-            sim.State.Slots[0].DeliveryId = null;
+            sim.State.Slots[1].DeliveryId = null;
             for (int i = 0; i < 150; i++) { sim.State.Player.Hp = 100f; sim.Tick(TickInput.None); }
             Assert.Greater(sim.State.Enemies.Count, 0);
             EnemyState first = sim.State.Enemies[0];
@@ -84,7 +88,7 @@ namespace Game.Tests
         public void EnemyCount_NeverExceedsCap()
         {
             Simulation sim = SimHelpers.NewSim(data);
-            sim.State.Slots[0].DeliveryId = null;
+            sim.State.Slots[1].DeliveryId = null;
             int max = 0;
             for (int i = 0; i < 36000; i++)
             {
@@ -100,7 +104,7 @@ namespace Game.Tests
         public void IdlePlayer_Dies_AndSimulationStops()
         {
             Simulation sim = SimHelpers.NewSim(data);
-            sim.State.Slots[0].DeliveryId = null;
+            sim.State.Slots[1].DeliveryId = null;
             int deathEvents = 0;
             for (int i = 0; i < 3600 && sim.State.Phase != RunPhase.Dead; i++)
             {
@@ -118,7 +122,7 @@ namespace Game.Tests
         public void DeadEnemy_IsRemoved_AndCounted()
         {
             Simulation sim = SimHelpers.NewSim(data, quiet: true);
-            EnemyState e = SimHelpers.AddEnemy(sim, data, "grunt", new Vector2(30f, 30f));
+            EnemyState e = SimHelpers.AddEnemy(sim, data, "horn", new Vector2(30f, 30f));
             e.Hp = 0f;
             sim.Tick(TickInput.None);
             Assert.AreEqual(0, sim.State.Enemies.Count);
@@ -130,17 +134,17 @@ namespace Game.Tests
         public void TouchingEnemy_DamagesPlayer()
         {
             Simulation sim = SimHelpers.NewSim(data, quiet: true);
-            sim.State.Slots[0].DeliveryId = null;
-            SimHelpers.AddEnemy(sim, data, "grunt", sim.State.Player.Pos);
+            sim.State.Slots[1].DeliveryId = null;
+            SimHelpers.AddEnemy(sim, data, "horn", sim.State.Player.Pos);
             SimHelpers.Run(sim, 30);
-            Assert.AreEqual(85f, sim.State.Player.Hp, 0.1f);
+            Assert.AreEqual(88f, sim.State.Player.Hp, 0.1f);
         }
 
         [Test]
         public void LateEnemies_HaveMoreHp()
         {
             Simulation sim = SimHelpers.NewSim(data);
-            sim.State.Slots[0].DeliveryId = null;
+            sim.State.Slots[1].DeliveryId = null;
             sim.State.Tick = 30 * 60 * 10;
             sim.State.SpawnTimer = 0f;
             sim.State.Player.Hp = 100f;
@@ -155,7 +159,7 @@ namespace Game.Tests
         {
             // 모서리에 몰려도 적이 플레이어 바로 위에 생기면 안 된다
             Simulation sim = SimHelpers.NewSim(data);
-            sim.State.Slots[0].DeliveryId = null;
+            sim.State.Slots[1].DeliveryId = null;
             float minAllowed = data.Balance("spawn_distance") * 0.5f;
             var seen = new System.Collections.Generic.HashSet<int>();
             int spawned = 0;
@@ -183,7 +187,7 @@ namespace Game.Tests
             string stages = TestData.ReadCsv("stages").TrimEnd();
             GameData changed = TestData.LoadWith("stages", stages.Substring(0, stages.Length - 4) + "pool\n");
             Assert.AreEqual("pool", changed.Stage("swamp").StartDelivery);
-            Assert.AreEqual("pool", RunFactory.NewRun(changed, "swamp", 1).Slots[0].DeliveryId);
+            Assert.AreEqual("pool", RunFactory.NewRun(changed, "swamp", 1).Slots[1].DeliveryId);
         }
     }
 }

@@ -1,2 +1,2 @@
-﻿id,name,width,height,runes,enemies,terrain_substance,terrain_count,terrain_radius,start_delivery
-swamp,늪지,40,40,bolt|cloud|pool|fire|water|gas|lightning,grunt:2|soaked:1,water,8,1.5,bolt
+﻿id,name,width,height,absorb,enemies,terrain_substance,terrain_count,terrain_radius,start_delivery
+swamp,늪지,40,40,pool:10|water:10|cloud:8|gas:8|bolt:5|fire:5|lightning:5,slime:water:5|spore:gas:4|slime::2|horn::2|horn:fire:1|spore:lightning:1|horn:lightning:1|slime:gas:1,water,8,1.5,bolt

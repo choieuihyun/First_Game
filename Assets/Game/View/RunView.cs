@@ -125,22 +125,13 @@ namespace Game.View
                 if (sub != null) Draw(sub.Shape, WithAlpha(color, 0.9f), V(z.Pos), 0.55f, -3);
             }
 
-            foreach (PickupState p in state.Pickups)
-            {
-                Draw("diamond", new Color(0.2f, 0.2f, 0.28f), V(p.Pos), 0.7f, 0);
-                if (data.IsDelivery(p.RuneId)) Draw("diamond", new Color(0.8f, 0.7f, 1f), V(p.Pos), 0.4f, 1);
-                else
-                {
-                    SubstanceDef sub = data.Substance(p.RuneId);
-                    Draw(sub.Shape, ShapeSprites.ParseColor(sub.Color), V(p.Pos), 0.4f, 1);
-                }
-            }
-
             foreach (EnemyState e in state.Enemies)
             {
                 EnemyDef def = data.Enemy(e.DefId);
                 Vector2 pos = Interpolated(e.Id, V(e.Pos), alpha);
-                Draw(def.Shape, ShapeSprites.ParseColor(def.Color), pos, e.Radius * 2.2f, 2);
+                // 몸 종류는 윤곽 모양으로, 처음부터 지닌 물질은 몸 색으로 보여 준다
+                string bodyColor = e.InnateSubstance != null ? data.Substance(e.InnateSubstance).Color : def.Color;
+                Draw(def.Shape, ShapeSprites.ParseColor(bodyColor), pos, e.Radius * 2.2f, 2);
                 if (!e.Substance.IsEmpty)
                 {
                     // 묻은 물질은 색과 모양 둘 다로 보여 준다
@@ -160,7 +151,7 @@ namespace Game.View
                 }
             }
 
-            Draw("circle", new Color(0.95f, 0.95f, 1f), playerPos, 0.8f, 5);
+            DrawPlayer(state, playerPos);
             DrawEffects();
 
             for (int i = cursor; i < pool.Count; i++)
@@ -168,6 +159,41 @@ namespace Game.View
 
             cam.orthographicSize = VisibleWidth / Mathf.Max(0.1f, cam.aspect) / 2f;
             cam.transform.position = new Vector3(playerPos.x, playerPos.y, -10f);
+        }
+
+        /// <summary>내 몸을 그린다. 앞을 향해 돌아가고, 왼팔과 오른팔과 꼬리에 붙은 것이 그 자리에 보인다</summary>
+        void DrawPlayer(RunState state, Vector2 pos)
+        {
+            Vector2 forward = V(state.Player.Facing);
+            if (forward.sqrMagnitude < 0.0001f) forward = Vector2.up;
+            forward.Normalize();
+            var left = new Vector2(-forward.y, forward.x);
+
+            Draw("circle", new Color(0.95f, 0.95f, 1f), pos, 0.7f, 5);
+            // 어디가 앞인지 알 수 있게 작은 코를 단다
+            Draw("circle", new Color(0.95f, 0.95f, 1f), pos + forward * 0.36f, 0.26f, 5);
+
+            DrawPart(state.Slots[BodyPart.LeftArm], pos + left * 0.52f);
+            DrawPart(state.Slots[BodyPart.RightArm], pos - left * 0.52f);
+            DrawPart(state.Slots[BodyPart.Tail], pos - forward * 0.58f);
+        }
+
+        void DrawPart(SpellSlot slot, Vector2 pos)
+        {
+            if (slot.DeliveryId == null && slot.SubstanceId == null) return;
+            Color color = slot.SubstanceId != null
+                ? ShapeSprites.ParseColor(data.Substance(slot.SubstanceId).Color)
+                : new Color(0.75f, 0.75f, 0.8f);
+            if (slot.DeliveryId == null)
+            {
+                // 몸은 아직 없고 물질만 붙은 자리는 작은 점으로 보인다
+                Draw("circle", color, pos, 0.16f, 6);
+                return;
+            }
+            EnemyDef body = data.BodyForDelivery(slot.DeliveryId);
+            int extra = Mathf.Max(0, slot.DeliveryLevel - 1) + Mathf.Max(0, slot.SubstanceLevel - 1);
+            // 강화할수록 그 부위가 커진다
+            Draw(body != null ? body.Shape : "circle", color, pos, 0.34f * (1f + 0.1f * extra), 6);
         }
 
         void Remember(RunState state)

@@ -1,3 +1,4 @@
-﻿id,name,hp,speed,radius,contact_dps,substance,color,shape
-grunt,일반 적,20,1.6,0.35,15,,#BF4D59,square
-soaked,젖은 적,26,1.4,0.35,15,water,#4D80BF,square
+﻿id,name,delivery,hp,speed,radius,contact_dps,color,shape
+horn,뿔형,bolt,14,2.1,0.3,12,#B0B0B8,diamond
+spore,포자형,cloud,22,1.4,0.38,15,#B0B0B8,circle
+slime,점액형,pool,34,1.1,0.42,18,#B0B0B8,square

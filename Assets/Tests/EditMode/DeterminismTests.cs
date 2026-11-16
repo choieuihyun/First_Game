@@ -21,7 +21,7 @@ namespace Game.Tests
             return new TickInput
             {
                 Move = new Vector2((float)Math.Cos(tick * 0.05), (float)Math.Sin(tick * 0.05)),
-                RuneChoice = tick % 3
+                PartChoice = tick % 3
             };
         }
 
@@ -37,6 +37,7 @@ namespace Game.Tests
         Simulation NewSim(uint seed)
         {
             var sim = new Simulation(data, RunFactory.NewRun(data, "swamp", seed));
+            sim.State.Slots[0].DeliveryId = "bolt";
             sim.State.Slots[0].SubstanceId = "fire";
             sim.State.Slots[1].DeliveryId = "cloud";
             sim.State.Slots[1].SubstanceId = "gas";
@@ -89,15 +90,15 @@ namespace Game.Tests
         }
 
         [Test]
-        public void SaveWhileChoosingRune_Restores()
+        public void SaveWhileChoosingPart_Restores()
         {
             Simulation a = NewSim(5);
-            a.State.Pickups.Add(new PickupState { Id = a.State.NextId++, Pos = a.State.Player.Pos, RuneId = "water" });
+            a.State.PendingTraits.Add("water");
             a.Tick(TickInput.None);
-            Assert.AreEqual(RunPhase.ChoosingRune, a.State.Phase);
+            Assert.AreEqual(RunPhase.ChoosingPart, a.State.Phase);
             RunState loaded = RunSerializer.Load(RunSerializer.Save(a.State));
-            Assert.AreEqual(RunPhase.ChoosingRune, loaded.Phase);
-            Assert.AreEqual(a.State.PendingRunes, loaded.PendingRunes);
+            Assert.AreEqual(RunPhase.ChoosingPart, loaded.Phase);
+            Assert.AreEqual(a.State.PendingTraits, loaded.PendingTraits);
         }
 
         [Test]
@@ -105,9 +106,12 @@ namespace Game.Tests
         {
             RunState fresh = RunFactory.NewRun(data, "swamp", 9);
             RunState loaded = RunSerializer.Load(RunSerializer.Save(fresh));
-            Assert.IsNull(loaded.Slots[1].DeliveryId);
-            Assert.IsNull(loaded.Slots[0].SubstanceId);
-            Assert.AreEqual("bolt", loaded.Slots[0].DeliveryId);
+            Assert.IsNull(loaded.Slots[0].DeliveryId);
+            Assert.IsNull(loaded.Slots[1].SubstanceId);
+            Assert.AreEqual("bolt", loaded.Slots[1].DeliveryId);
+            Assert.AreEqual(1, loaded.Slots[1].DeliveryLevel);
+            Assert.AreEqual(fresh.Player.Facing, loaded.Player.Facing);
+            Assert.AreEqual(fresh.AbsorbCount.Length, loaded.AbsorbCount.Length);
             Assert.AreEqual(fresh.Rng.State, loaded.Rng.State);
             Assert.AreEqual("swamp", loaded.StageId);
         }

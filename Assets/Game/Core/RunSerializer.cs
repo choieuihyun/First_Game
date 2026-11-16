@@ -9,7 +9,7 @@ namespace Game.Core
     public static class RunSerializer
     {
         /// <summary>저장 형식 버전. RunState 의 필드가 바뀌면 올린다</summary>
-        public const int Version = 1;
+        public const int Version = 2;
 
         // 깨진 파일이 엄청난 개수를 요구해 메모리를 잡아먹지 않게 하는 한도
         const int MaxCount = 100000;
@@ -28,6 +28,9 @@ namespace Game.Core
                 w.Write(s.NextId);
                 WriteVec(w, s.Player.Pos);
                 w.Write(s.Player.Hp);
+                WriteVec(w, s.Player.Facing);
+                w.Write(s.Player.Trail.Count);
+                foreach (Vector2 t in s.Player.Trail) WriteVec(w, t);
 
                 w.Write(s.Slots.Length);
                 foreach (SpellSlot slot in s.Slots)
@@ -35,6 +38,8 @@ namespace Game.Core
                     WriteString(w, slot.DeliveryId);
                     WriteString(w, slot.SubstanceId);
                     w.Write(slot.Cooldown);
+                    w.Write(slot.DeliveryLevel);
+                    w.Write(slot.SubstanceLevel);
                 }
 
                 w.Write(s.Enemies.Count);
@@ -46,6 +51,7 @@ namespace Game.Core
                     w.Write(e.Hp);
                     w.Write(e.Radius);
                     WriteHeld(w, e.Substance);
+                    WriteString(w, e.InnateSubstance);
                 }
 
                 w.Write(s.Projectiles.Count);
@@ -72,16 +78,15 @@ namespace Game.Core
                     WriteHeld(w, z.Substance);
                 }
 
-                w.Write(s.Pickups.Count);
-                foreach (PickupState p in s.Pickups)
-                {
-                    w.Write(p.Id);
-                    WriteVec(w, p.Pos);
-                    WriteString(w, p.RuneId);
-                }
+                w.Write(s.PendingTraits.Count);
+                foreach (string trait in s.PendingTraits) WriteString(w, trait);
 
-                w.Write(s.PendingRunes.Count);
-                foreach (string rune in s.PendingRunes) WriteString(w, rune);
+                w.Write(s.AbsorbCount.Length);
+                for (int i = 0; i < s.AbsorbCount.Length; i++)
+                {
+                    w.Write(s.AbsorbCount[i]);
+                    w.Write(s.AbsorbAcquired[i]);
+                }
 
                 w.Write(s.ReactionQueue.Count);
                 foreach (PendingReaction r in s.ReactionQueue)
@@ -121,17 +126,24 @@ namespace Game.Core
                     s.NextId = r.ReadInt32();
                     s.Player.Pos = ReadVec(r);
                     s.Player.Hp = r.ReadSingle();
+                    s.Player.Facing = ReadVec(r);
+                    int trail = ReadCount(r);
+                    for (int i = 0; i < trail; i++) s.Player.Trail.Add(ReadVec(r));
 
                     s.Slots = new SpellSlot[ReadCount(r)];
                     for (int i = 0; i < s.Slots.Length; i++)
-                        s.Slots[i] = new SpellSlot { DeliveryId = ReadString(r), SubstanceId = ReadString(r), Cooldown = r.ReadSingle() };
+                        s.Slots[i] = new SpellSlot
+                        {
+                            DeliveryId = ReadString(r), SubstanceId = ReadString(r), Cooldown = r.ReadSingle(),
+                            DeliveryLevel = r.ReadInt32(), SubstanceLevel = r.ReadInt32()
+                        };
 
                     int n = ReadCount(r);
                     for (int i = 0; i < n; i++)
                         s.Enemies.Add(new EnemyState
                         {
                             Id = r.ReadInt32(), DefId = ReadString(r), Pos = ReadVec(r), Hp = r.ReadSingle(),
-                            Radius = r.ReadSingle(), Substance = ReadHeld(r)
+                            Radius = r.ReadSingle(), Substance = ReadHeld(r), InnateSubstance = ReadString(r)
                         });
 
                     n = ReadCount(r);
@@ -151,11 +163,16 @@ namespace Game.Core
                         });
 
                     n = ReadCount(r);
-                    for (int i = 0; i < n; i++)
-                        s.Pickups.Add(new PickupState { Id = r.ReadInt32(), Pos = ReadVec(r), RuneId = ReadString(r) });
+                    for (int i = 0; i < n; i++) s.PendingTraits.Add(ReadString(r));
 
                     n = ReadCount(r);
-                    for (int i = 0; i < n; i++) s.PendingRunes.Add(ReadString(r));
+                    s.AbsorbCount = new int[n];
+                    s.AbsorbAcquired = new int[n];
+                    for (int i = 0; i < n; i++)
+                    {
+                        s.AbsorbCount[i] = r.ReadInt32();
+                        s.AbsorbAcquired[i] = r.ReadInt32();
+                    }
 
                     n = ReadCount(r);
                     for (int i = 0; i < n; i++)

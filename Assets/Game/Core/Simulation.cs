@@ -15,8 +15,9 @@ namespace Game.Core
         readonly float playerRadius;
         readonly int maxEnemies;
         readonly float contactInterval;
-        readonly float pickupRadius;
-        readonly float runeDropChance;
+        readonly int trailLength;
+        readonly float absorbGrowth;
+        readonly int upgradeMax;
         readonly SpellCaster caster;
         readonly List<EnemyState> scratch = new List<EnemyState>();
 
@@ -39,8 +40,9 @@ namespace Game.Core
             Grid = new SpatialGrid(stage.Width, stage.Height, data.Balance("grid_cell_size"));
             Grid.Rebuild(state.Enemies);
             contactInterval = data.Balance("contact_interval");
-            pickupRadius = data.Balance("pickup_radius");
-            runeDropChance = data.Balance("rune_drop_chance");
+            trailLength = Math.Max(1, (int)Math.Round(data.Balance("tail_delay") * data.Balance("tick_rate")));
+            absorbGrowth = data.Balance("absorb_growth");
+            upgradeMax = (int)data.Balance("upgrade_max");
             Resolver = new ReactionResolver(data, state, Grid, Events);
             caster = new SpellCaster(data, state, Grid, Events, Resolver);
         }
@@ -50,10 +52,10 @@ namespace Game.Core
         {
             Events.Clear();
             if (State.Phase == RunPhase.Dead) return;
-            if (State.Phase == RunPhase.ChoosingRune)
+            if (State.Phase == RunPhase.ChoosingPart)
             {
-                // 룬을 고르는 동안 시간은 흐르지 않는다. 선택만 받는다
-                HandleRuneChoice(input.RuneChoice);
+                // 붙일 부위를 고르는 동안 시간은 흐르지 않는다. 선택만 받는다
+                HandlePartChoice(input.PartChoice);
                 return;
             }
 
@@ -70,53 +72,66 @@ namespace Game.Core
             RemoveDeadEnemies();
             Grid.Rebuild(State.Enemies);
 
-            CollectPickups();
-
             if (State.Player.Hp <= 0f)
             {
                 State.Phase = RunPhase.Dead;
                 Events.Add(new RunEvent { Type = RunEventType.PlayerDied, Pos = State.Player.Pos });
             }
-            else if (State.PendingRunes.Count > 0)
+            else if (State.PendingTraits.Count > 0)
             {
-                State.Phase = RunPhase.ChoosingRune;
-                Events.Add(new RunEvent { Type = RunEventType.RunePending, Id = State.PendingRunes[0], Pos = State.Player.Pos });
+                State.Phase = RunPhase.ChoosingPart;
+                Events.Add(new RunEvent { Type = RunEventType.TraitPending, Id = State.PendingTraits[0], Pos = State.Player.Pos });
             }
             State.Tick++;
         }
 
-        void CollectPickups()
+        /// <summary>그 특징을 다음에 얻으려면 몇 마리를 잡아야 하는지. 얻을수록 늘어난다</summary>
+        public int AbsorbNeed(int traitIndex)
         {
-            for (int i = 0; i < State.Pickups.Count; i++)
-            {
-                PickupState p = State.Pickups[i];
-                if (Vector2.DistanceSquared(p.Pos, State.Player.Pos) > pickupRadius * pickupRadius) continue;
-                State.Pickups.RemoveAt(i);
-                i--;
-                State.PendingRunes.Add(p.RuneId);
-            }
+            double need = stage.Absorb[traitIndex].Value * Math.Pow(absorbGrowth, State.AbsorbAcquired[traitIndex]);
+            return Math.Max(1, (int)Math.Round(need));
         }
 
-        /// <summary>맨 앞 룬을 버리거나 세트에 끼운다. 남은 룬이 없으면 판을 다시 진행한다</summary>
-        void HandleRuneChoice(int choice)
+        /// <summary>잡은 적의 특징 하나를 포식 게이지에 더한다. 다 차면 그 특징을 얻는다</summary>
+        void Absorb(string trait)
         {
-            if (State.PendingRunes.Count == 0) { State.Phase = RunPhase.Playing; return; }
+            int index = stage.AbsorbIndex(trait);
+            if (index < 0) return;
+            State.AbsorbCount[index]++;
+            if (State.AbsorbCount[index] < AbsorbNeed(index)) return;
+            State.AbsorbCount[index] = 0;
+            State.AbsorbAcquired[index]++;
+            State.PendingTraits.Add(trait);
+        }
+
+        /// <summary>맨 앞 특징을 버리거나 부위에 붙인다. 같은 특징이 이미 붙어 있으면 강화한다. 남은 특징이 없으면 판을 다시 진행한다</summary>
+        void HandlePartChoice(int choice)
+        {
+            if (State.PendingTraits.Count == 0) { State.Phase = RunPhase.Playing; return; }
             if (choice == TickInput.NoChoice) return;
             if (choice != TickInput.Discard && (choice < 0 || choice >= State.Slots.Length)) return;
 
-            string rune = State.PendingRunes[0];
-            State.PendingRunes.RemoveAt(0);
+            string trait = State.PendingTraits[0];
+            State.PendingTraits.RemoveAt(0);
             if (choice != TickInput.Discard)
             {
                 SpellSlot slot = State.Slots[choice];
-                if (data.IsDelivery(rune)) slot.DeliveryId = rune;
-                else slot.SubstanceId = rune;
+                if (data.IsDelivery(trait))
+                {
+                    if (slot.DeliveryId == trait) slot.DeliveryLevel = Math.Min(upgradeMax, Math.Max(1, slot.DeliveryLevel) + 1);
+                    else { slot.DeliveryId = trait; slot.DeliveryLevel = 1; }
+                }
+                else
+                {
+                    if (slot.SubstanceId == trait) slot.SubstanceLevel = Math.Min(upgradeMax, Math.Max(1, slot.SubstanceLevel) + 1);
+                    else { slot.SubstanceId = trait; slot.SubstanceLevel = 1; }
+                }
                 slot.Cooldown = 0f;
-                Events.Add(new RunEvent { Type = RunEventType.RuneEquipped, Id = rune, Pos = State.Player.Pos });
+                Events.Add(new RunEvent { Type = RunEventType.TraitEquipped, Id = trait, Pos = State.Player.Pos });
             }
 
-            if (State.PendingRunes.Count > 0)
-                Events.Add(new RunEvent { Type = RunEventType.RunePending, Id = State.PendingRunes[0], Pos = State.Player.Pos });
+            if (State.PendingTraits.Count > 0)
+                Events.Add(new RunEvent { Type = RunEventType.TraitPending, Id = State.PendingTraits[0], Pos = State.Player.Pos });
             else
                 State.Phase = RunPhase.Playing;
         }
@@ -129,6 +144,10 @@ namespace Game.Core
             p.X = Math.Min(stage.Width, Math.Max(0f, p.X));
             p.Y = Math.Min(stage.Height, Math.Max(0f, p.Y));
             State.Player.Pos = p;
+            // 움직인 쪽이 앞이다. 가만히 있으면 마지막 방향을 유지한다
+            if (len > 0.01f) State.Player.Facing = Vector2.Normalize(move);
+            State.Player.Trail.Add(p);
+            while (State.Player.Trail.Count > trailLength) State.Player.Trail.RemoveAt(0);
         }
 
         void SpawnEnemies()
@@ -148,7 +167,8 @@ namespace Game.Core
 
             for (int i = 0; i < count && State.Enemies.Count < maxEnemies; i++)
             {
-                EnemyDef def = PickEnemy();
+                StageEnemy picked = PickEnemy();
+                EnemyDef def = data.Enemy(picked.Body);
                 Vector2 pos = PickSpawnPosition(distance);
                 var e = new EnemyState
                 {
@@ -156,9 +176,10 @@ namespace Game.Core
                     DefId = def.Id,
                     Pos = pos,
                     Hp = def.Hp * hpMul,
-                    Radius = def.Radius
+                    Radius = def.Radius,
+                    InnateSubstance = picked.Substance
                 };
-                if (def.Substance != null) e.Substance = new Held { Id = def.Substance, TimeLeft = -1f, Depth = 0 };
+                if (picked.Substance != null) e.Substance = new Held { Id = picked.Substance, TimeLeft = -1f, Depth = 0 };
                 State.Enemies.Add(e);
             }
         }
@@ -184,17 +205,17 @@ namespace Game.Core
             return best;
         }
 
-        EnemyDef PickEnemy()
+        StageEnemy PickEnemy()
         {
             float total = 0f;
-            foreach (KeyValuePair<string, float> w in stage.Enemies) total += w.Value;
+            for (int i = 0; i < stage.Enemies.Count; i++) total += stage.Enemies[i].Weight;
             float roll = State.Rng.NextFloat() * total;
-            foreach (KeyValuePair<string, float> w in stage.Enemies)
+            for (int i = 0; i < stage.Enemies.Count; i++)
             {
-                roll -= w.Value;
-                if (roll < 0f) return data.Enemy(w.Key);
+                roll -= stage.Enemies[i].Weight;
+                if (roll < 0f) return stage.Enemies[i];
             }
-            return data.Enemy(stage.Enemies[stage.Enemies.Count - 1].Key);
+            return stage.Enemies[stage.Enemies.Count - 1];
         }
 
         void MoveEnemies()
@@ -308,12 +329,9 @@ namespace Game.Core
                 i--;
                 State.Kills++;
                 Events.Add(new RunEvent { Type = RunEventType.EnemyDied, Id = e.DefId, Pos = e.Pos });
-                if (State.Rng.NextFloat() < runeDropChance)
-                {
-                    string rune = stage.Runes[State.Rng.NextInt(stage.Runes.Count)];
-                    State.Pickups.Add(new PickupState { Id = State.NextId++, Pos = e.Pos, RuneId = rune });
-                    Events.Add(new RunEvent { Type = RunEventType.RuneDropped, Id = rune, Pos = e.Pos });
-                }
+                // 먹어치운다. 몸 종류가 지닌 방식과, 처음부터 지녔던 물질이 게이지에 쌓인다
+                Absorb(data.Enemy(e.DefId).Delivery);
+                Absorb(e.InnateSubstance);
             }
         }
     }

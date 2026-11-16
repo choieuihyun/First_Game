@@ -23,11 +23,13 @@ namespace Game.Core
             s.Player.Pos = new Vector2(stage.Width / 2f, stage.Height / 2f);
             s.Player.Hp = data.Balance("player_hp");
 
-            int slotCount = (int)data.Balance("slot_count");
-            s.Slots = new SpellSlot[slotCount];
-            for (int i = 0; i < slotCount; i++) s.Slots[i] = new SpellSlot();
-            // 처음에는 첫 세트에 스테이지가 정한 방식만 끼워져 있다
-            s.Slots[0].DeliveryId = stage.StartDelivery;
+            s.Slots = new SpellSlot[BodyPart.Count];
+            for (int i = 0; i < s.Slots.Length; i++) s.Slots[i] = new SpellSlot();
+            // 처음에는 오른팔에 스테이지가 정한 방식만 붙어 있다
+            s.Slots[BodyPart.RightArm].DeliveryId = stage.StartDelivery;
+            s.Slots[BodyPart.RightArm].DeliveryLevel = 1;
+            s.AbsorbCount = new int[stage.Absorb.Count];
+            s.AbsorbAcquired = new int[stage.Absorb.Count];
 
             if (stage.TerrainSubstance != null)
             {

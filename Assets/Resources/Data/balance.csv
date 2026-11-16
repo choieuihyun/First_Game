@@ -12,12 +12,22 @@ player_radius,0.4,플레이어 크기
 spawn_distance,9,적이 플레이어에서 얼마나 떨어져 나오나
 spawn_interval_start,1.0,처음 적 생성 간격 (초)
 spawn_interval_min,0.12,가장 짧은 적 생성 간격 (초)
-spawn_interval_decay_per_sec,0.0015,1초마다 생성 간격이 줄어드는 양
-spawn_count_step_min,2,몇 분마다 한 번에 나오는 적이 한 마리 늘어나나
-enemy_hp_growth,0.08,적 체력 증가 계수 (1 + 계수 x 분 x 분)
+spawn_interval_decay_per_sec,0.0009,1초마다 생성 간격이 줄어드는 양
+spawn_count_step_min,4,몇 분마다 한 번에 나오는 적이 한 마리 늘어나나
+enemy_hp_growth,0.03,적 체력 증가 계수 (1 + 계수 x 분 x 분)
 grid_cell_size,2,판정용 격자 칸 크기
 absorb_growth,1.5,같은 특징을 얻을 때마다 다음에 필요한 수가 몇 배가 되나
 upgrade_max,5,부위 강화 단계 상한
 upgrade_damage,0.2,강화 한 단계마다 늘어나는 피해 비율
 upgrade_size,0.1,강화 한 단계마다 늘어나는 크기 비율
 tail_delay,0.5,꼬리가 몇 초 전의 내 자리에 남기나
+upgrade_step,2,방식 강화 몇 단계마다 동작이 한 번 바뀌나
+upgrade_bolt_spread,12,강화로 늘어난 탄환 사이의 각도
+upgrade_cooldown_cut,0.15,탄환이 아닌 방식이 강화로 줄어드는 쿨타임 비율
+charge_interval,3,돌진하는 몸이 몇 초마다 돌진하나
+charge_duration,0.6,돌진이 이어지는 시간 (초)
+charge_speed,3.5,돌진할 때 속도 배율
+zigzag_angle,50,갈지자로 오는 몸이 좌우로 꺾는 최대 각도
+orbit_distance,4,맴도는 몸이 이 거리까지 다가온 뒤 주위를 돈다
+orbit_closing,0.12,맴도는 동안 안쪽으로 좁혀 오는 속도 비율
+orbit_closing_growth,0.25,맴도는 시간이 1초 늘 때마다 좁혀 오는 비율이 얼마나 커지나

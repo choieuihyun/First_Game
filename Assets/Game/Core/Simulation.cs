@@ -16,6 +16,13 @@ namespace Game.Core
         readonly int maxEnemies;
         readonly float contactInterval;
         readonly int trailLength;
+        readonly float chargeInterval;
+        readonly float chargeDuration;
+        readonly float chargeSpeed;
+        readonly float zigzagAngle;
+        readonly float orbitDistance;
+        readonly float orbitClosing;
+        readonly float orbitClosingGrowth;
         readonly float absorbGrowth;
         readonly int upgradeMax;
         readonly SpellCaster caster;
@@ -42,6 +49,13 @@ namespace Game.Core
             contactInterval = data.Balance("contact_interval");
             trailLength = Math.Max(1, (int)Math.Round(data.Balance("tail_delay") * data.Balance("tick_rate")));
             absorbGrowth = data.Balance("absorb_growth");
+            chargeInterval = data.Balance("charge_interval");
+            chargeDuration = data.Balance("charge_duration");
+            chargeSpeed = data.Balance("charge_speed");
+            zigzagAngle = data.Balance("zigzag_angle");
+            orbitDistance = data.Balance("orbit_distance");
+            orbitClosing = data.Balance("orbit_closing");
+            orbitClosingGrowth = data.Balance("orbit_closing_growth");
             upgradeMax = (int)data.Balance("upgrade_max");
             Resolver = new ReactionResolver(data, state, Grid, Events);
             caster = new SpellCaster(data, state, Grid, Events, Resolver);
@@ -220,15 +234,61 @@ namespace Game.Core
 
         void MoveEnemies()
         {
+            float seconds = State.Seconds(data);
             foreach (EnemyState e in State.Enemies)
             {
                 EnemyDef def = data.Enemy(e.DefId);
+                // 얼어 있으면 움직이지도 공격하지도 못한다
+                if (e.FreezeTime > 0f) continue;
+
                 Vector2 to = State.Player.Pos - e.Pos;
                 float dist = to.Length();
-                if (dist > 0.01f) e.Pos += to / dist * Math.Min(dist, def.Speed * dt);
+                float speed = def.Speed * (e.SlowTime > 0f ? e.SlowFactor : 1f);
+                if (dist > 0.01f)
+                {
+                    Vector2 toward = to / dist;
+                    Vector2 dir = toward;
+                    switch (def.Behavior)
+                    {
+                        case "charge":
+                            // 평소에는 걷다가 일정 시간마다 잠깐 빠르게 달려든다
+                            e.BehaviorTimer += dt;
+                            if (e.BehaviorTimer >= chargeInterval + chargeDuration) e.BehaviorTimer = 0f;
+                            if (e.BehaviorTimer >= chargeInterval) speed *= chargeSpeed;
+                            break;
+                        case "zigzag":
+                            // 좌우로 흔들리며 온다. 적마다 박자가 다르게 Id 를 섞는다
+                            dir = Rotate(toward, (float)Math.Sin(seconds * 3.0 + e.Id * 1.7) * zigzagAngle);
+                            break;
+                        case "orbit":
+                            // 일정 거리까지 다가온 뒤 주위를 돌면서 조금씩 좁혀 온다
+                            if (dist <= orbitDistance)
+                            {
+                                // 맴도는 시간이 길어질수록 더 안쪽으로 파고든다. 영영 맴돌기만 하지 않게 하기 위한 것
+                                e.BehaviorTimer += dt;
+                                float closing = orbitClosing + e.BehaviorTimer * orbitClosingGrowth;
+                                var tangent = new Vector2(-toward.Y, toward.X);
+                                if ((e.Id & 1) == 0) tangent = -tangent;
+                                dir = Vector2.Normalize(tangent + toward * closing);
+                            }
+                            break;
+                    }
+                    Vector2 step = dir * speed * dt;
+                    // 플레이어를 지나쳐 반대편으로 튀지 않게 한다
+                    if (step.Length() > dist && dir == toward) step = to;
+                    e.Pos += step;
+                }
+                e.Pos = new Vector2(Math.Min(stage.Width, Math.Max(0f, e.Pos.X)), Math.Min(stage.Height, Math.Max(0f, e.Pos.Y)));
                 if (Vector2.Distance(e.Pos, State.Player.Pos) < playerRadius + e.Radius)
                     State.Player.Hp -= def.ContactDps * dt;
             }
+        }
+
+        static Vector2 Rotate(Vector2 v, float degrees)
+        {
+            double rad = degrees * Math.PI / 180.0;
+            float c = (float)Math.Cos(rad), sn = (float)Math.Sin(rad);
+            return new Vector2(v.X * c - v.Y * sn, v.X * sn + v.Y * c);
         }
 
         void UpdateProjectiles()
@@ -246,7 +306,7 @@ namespace Game.Core
                 {
                     // 여러 적에 걸쳤으면 Id 가 가장 작은 적 하나만 맞힌다
                     EnemyState hit = scratch[0];
-                    hit.Hp -= p.Damage;
+                    Combat.Damage(hit, p.Damage);
                     Resolver.ContactEnemy(hit, p.Substance);
                     gone = true;
                 }
@@ -291,7 +351,7 @@ namespace Game.Core
                 Grid.Query(z.Pos, z.Radius, scratch);
                 foreach (EnemyState e in scratch)
                 {
-                    e.Hp -= z.Damage;
+                    Combat.Damage(e, z.Damage);
                     if (Resolver.ContactEnemy(e, z.Substance)) { z.Removed = true; break; }
                 }
                 if (z.Removed || z.Substance.IsEmpty) continue;
@@ -312,6 +372,12 @@ namespace Game.Core
         {
             foreach (EnemyState e in State.Enemies)
             {
+                // 상태 시간을 줄이고 지속 피해를 준다
+                if (e.DotTime > 0f) { Combat.Damage(e, e.DotDps * dt); e.DotTime -= dt; }
+                if (e.SlowTime > 0f) e.SlowTime -= dt;
+                if (e.FreezeTime > 0f) e.FreezeTime -= dt;
+                if (e.VulnTime > 0f) e.VulnTime -= dt;
+
                 // 음수로 시작한 물질은 적이 원래 지닌 것이라 줄이지 않는다
                 if (e.Substance.IsEmpty || e.Substance.TimeLeft < 0f) continue;
                 e.Substance.TimeLeft -= dt;

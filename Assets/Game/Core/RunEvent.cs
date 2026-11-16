@@ -5,7 +5,7 @@ namespace Game.Core
     /// <summary>한 틱 동안 일어난 일의 종류. 화면이 이것을 읽어 이펙트와 소리를 낸다</summary>
     public enum RunEventType
     {
-        EnemyDied, PlayerDied, ZoneSpawned, Reaction, Explosion, ChainLink, TraitPending, TraitEquipped
+        EnemyDied, PlayerDied, ZoneSpawned, Reaction, Explosion, ChainLink, TraitPending, TraitEquipped, Beam, Nova
     }
 
     /// <summary>한 틱 동안 일어난 일 하나</summary>

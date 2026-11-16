@@ -1,4 +1,6 @@
-﻿id,name,delivery,hp,speed,radius,contact_dps,color,shape
-horn,뿔형,bolt,14,2.1,0.3,12,#B0B0B8,diamond
-spore,포자형,cloud,22,1.4,0.38,15,#B0B0B8,circle
-slime,점액형,pool,34,1.1,0.42,18,#B0B0B8,square
+﻿id,name,delivery,behavior,hp,speed,radius,contact_dps,color,shape
+horn,뿔형,bolt,charge,14,1.7,0.3,12,#B0B0B8,diamond
+spore,포자형,cloud,zigzag,22,1.6,0.38,15,#B0B0B8,circle
+slime,점액형,pool,chase,34,1.1,0.42,18,#B0B0B8,square
+eye,눈알형,beam,orbit,18,2.2,0.32,12,#B0B0B8,ring
+urchin,가시형,nova,chase,46,0.9,0.46,22,#B0B0B8,star

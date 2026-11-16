@@ -21,7 +21,7 @@ namespace Game.Data
     }
 
     /// <summary>마법이 물질을 전달하는 방법</summary>
-    public enum DeliveryKind { Bolt, Zone }
+    public enum DeliveryKind { Bolt, Zone, Beam, Nova }
 
     /// <summary>방식 하나의 정의</summary>
     public sealed class DeliveryDef
@@ -63,7 +63,7 @@ namespace Game.Data
     }
 
     /// <summary>효과 조각 종류. 반응 결과는 이 조각들을 조합해 만든다</summary>
-    public enum EffectPiece { Damage, ApplySubstance, SpawnZone, Explode, Chain }
+    public enum EffectPiece { Damage, ApplySubstance, SpawnZone, Explode, Chain, Status, Push }
 
     /// <summary>효과의 한 단계</summary>
     public sealed class EffectStep
@@ -75,10 +75,13 @@ namespace Game.Data
         /// <summary>없으면 null</summary>
         public string Substance { get; }
         public float Duration { get; }
+        /// <summary>상태 조각일 때 거는 상태: slow, freeze, dot, vulnerable. 아니면 null</summary>
+        public string Status { get; }
 
-        public EffectStep(EffectPiece piece, float amount, float radius, int count, string substance, float duration)
+        public EffectStep(EffectPiece piece, float amount, float radius, int count, string substance, float duration, string status)
         {
             Piece = piece; Amount = amount; Radius = radius; Count = count; Substance = substance; Duration = duration;
+            Status = status;
         }
     }
 
@@ -101,6 +104,8 @@ namespace Game.Data
         public string Name { get; }
         /// <summary>이 몸 종류를 많이 잡으면 얻는 방식</summary>
         public string Delivery { get; }
+        /// <summary>움직이는 방식: chase, charge, zigzag, orbit</summary>
+        public string Behavior { get; }
         public float Hp { get; }
         public float Speed { get; }
         public float Radius { get; }
@@ -108,9 +113,10 @@ namespace Game.Data
         public string Color { get; }
         public string Shape { get; }
 
-        public EnemyDef(string id, string name, string delivery, float hp, float speed, float radius, float contactDps,
-            string color, string shape)
+        public EnemyDef(string id, string name, string delivery, string behavior, float hp, float speed, float radius,
+            float contactDps, string color, string shape)
         {
+            Behavior = behavior;
             Id = id; Name = name; Delivery = delivery; Hp = hp; Speed = speed; Radius = radius; ContactDps = contactDps;
             Color = color; Shape = shape;
         }

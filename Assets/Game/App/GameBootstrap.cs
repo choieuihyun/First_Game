@@ -53,14 +53,12 @@ namespace Game.App
             try
             {
                 data = GameData.Load(ReadCsv);
-                // 지금은 맵 선택 화면이 없어 stages.csv 의 첫 스테이지로 시작한다
-                stageId = data.Stages[0].Id;
                 tickSeconds = 1f / data.Balance("tick_rate");
                 input = new InputReader();
                 view = gameObject.AddComponent<RunView>();
-                view.Init(data, data.Stage(stageId));
+                view.Init(data);
                 hud.Init(data);
-                StartRun();
+                // 판은 아직 없다. 화면에서 맵을 고르면 시작한다
             }
             catch (Exception e)
             {
@@ -83,13 +81,25 @@ namespace Game.App
             return asset.text;
         }
 
-        void StartRun()
+        /// <summary>고른 맵으로 새 판을 시작한다</summary>
+        public void StartStage(string id)
         {
-            Sim = new Simulation(data, RunFactory.NewRun(data, stageId, (uint)Environment.TickCount));
-            hud.Sim = Sim;
-            view.Clear();
-            accumulated = 0f;
-            heldChoice = TickInput.NoChoice;
+            if (data == null || LoadError != null) return;
+            try
+            {
+                stageId = id;
+                view.SetStage(data.Stage(id));
+                Sim = new Simulation(data, RunFactory.NewRun(data, id, (uint)Environment.TickCount));
+                hud.Sim = Sim;
+                accumulated = 0f;
+                heldChoice = TickInput.NoChoice;
+                RenderAlpha = 1f;
+                hud.ClearReaction();
+            }
+            catch (Exception e)
+            {
+                Fail(e);
+            }
         }
 
         void OnApplicationPause(bool paused)
@@ -112,9 +122,15 @@ namespace Game.App
 
         void Update()
         {
-            if (LoadError != null || Sim == null) return;
+            if (LoadError != null || data == null) return;
 
-            if (Sim.State.Phase == RunPhase.Dead && hud.ConsumeRestart()) StartRun();
+            // 판이 없거나 죽은 뒤에는 맵 고르기를 받는다
+            if (Sim == null || Sim.State.Phase == RunPhase.Dead)
+            {
+                string chosen = hud.ConsumeStageChoice();
+                if (chosen != null) StartStage(chosen);
+            }
+            if (Sim == null) return;
             if (Paused)
             {
                 RenderAlpha = 1f;

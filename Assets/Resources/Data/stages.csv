@@ -1,2 +1,4 @@
 ﻿id,name,width,height,absorb,enemies,terrain_substance,terrain_count,terrain_radius,start_delivery
-swamp,늪지,40,40,pool:10|water:10|cloud:8|gas:8|bolt:5|fire:5|lightning:5,slime:water:5|spore:gas:4|slime::2|horn::2|horn:fire:1|spore:lightning:1|horn:lightning:1|slime:gas:1,water,8,1.5,bolt
+swamp,늪지,40,40,pool:10|water:10|cloud:8|gas:8|bolt:5|beam:5|ice:5|lightning:5,slime:water:5|spore:gas:4|slime::2|horn::2|horn:lightning:2|eye:ice:2|spore:water:2|slime:ice:1|eye:lightning:1|slime:oil:1,water,8,1.5,bolt
+foundry,용광로 폐허,40,40,nova:8|metal:10|bolt:8|fire:8|pool:8|oil:8|beam:5|acid:5,urchin:metal:4|horn:fire:4|slime:oil:4|horn::2|eye:acid:2|horn:metal:2|urchin:oil:1|eye:fire:1|slime:acid:1,oil,8,1.5,bolt
+lab,얼어붙은 실험실,40,40,beam:8|ice:8|nova:8|metal:8|cloud:8|acid:8|bolt:8|lightning:8|pool:6|fire:6,eye:ice:3|urchin:metal:3|spore:acid:3|horn:lightning:3|slime:ice:2|spore:fire:2|eye:lightning:1|urchin:acid:1|slime:metal:1|horn:fire:1|slime:oil:2,ice,6,1.5,bolt

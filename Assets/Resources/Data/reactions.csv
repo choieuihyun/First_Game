@@ -2,3 +2,23 @@
 gas_explosion,가스 폭발,gas,fire,10,fx_gas_explosion
 electrolysis,전기분해,water,lightning,10,fx_electrolysis
 hydrogen_blast,수소 대폭발,hydrogen,fire,20,fx_hydrogen_blast
+hydrogen_spark,수소 점화,hydrogen,lightning,20,fx_hydrogen_blast
+steam_burst,증기 폭발,water,fire,10,fx_steam_burst
+freeze,빙결,water,ice,10,fx_freeze
+melt,해빙,ice,fire,10,fx_melt
+superconduct,초전도,ice,lightning,10,fx_superconduct
+oil_fire,기름불,oil,fire,10,fx_oil_fire
+slick,기름막,oil,water,10,fx_slick
+oil_spark,유증기 점화,oil,lightning,10,fx_spark
+tar,굳은 기름,oil,ice,10,fx_tar
+corrode,부식,acid,metal,10,fx_corrode
+acid_spread,산 희석,acid,water,10,fx_acid_spread
+toxic,맹독,acid,gas,10,fx_toxic
+fumes,산 증기,acid,fire,10,fx_fumes
+magnet,자기장,metal,lightning,10,fx_magnet
+molten,쇳물,metal,fire,10,fx_molten
+rust,녹,metal,water,10,fx_rust
+brittle,저온 취성,metal,ice,10,fx_brittle
+storm,뇌우,steam,lightning,10,fx_storm
+plasma,플라스마,gas,lightning,10,fx_plasma
+acid_rain,산성비,gas,water,10,fx_acid_rain

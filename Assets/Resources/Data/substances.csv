@@ -3,4 +3,9 @@ fire,불,#FF7326,triangle,3,true
 water,물,#4DA6FF,drop,6,true
 gas,독가스,#73FF59,cloud,4,true
 lightning,번개,#FFF24D,bolt,0.5,true
+ice,얼음,#BFF2FF,hex,5,true
+oil,기름,#8C6B3F,circle,8,true
+acid,산,#C8FF2E,cross,5,true
+metal,쇳가루,#A8B0C0,square,8,true
 hydrogen,수소,#E6E6FF,ring,4,false
+steam,증기,#F2F2F2,star,3,false

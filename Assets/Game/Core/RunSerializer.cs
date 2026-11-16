@@ -9,7 +9,7 @@ namespace Game.Core
     public static class RunSerializer
     {
         /// <summary>저장 형식 버전. RunState 의 필드가 바뀌면 올린다</summary>
-        public const int Version = 2;
+        public const int Version = 4;
 
         // 깨진 파일이 엄청난 개수를 요구해 메모리를 잡아먹지 않게 하는 한도
         const int MaxCount = 100000;
@@ -52,6 +52,8 @@ namespace Game.Core
                     w.Write(e.Radius);
                     WriteHeld(w, e.Substance);
                     WriteString(w, e.InnateSubstance);
+                    w.Write(e.SlowTime); w.Write(e.SlowFactor); w.Write(e.FreezeTime);
+                    w.Write(e.DotTime); w.Write(e.DotDps); w.Write(e.VulnTime); w.Write(e.VulnMul); w.Write(e.BehaviorTimer);
                 }
 
                 w.Write(s.Projectiles.Count);
@@ -94,6 +96,7 @@ namespace Game.Core
                     WriteString(w, r.ReactionId);
                     WriteVec(w, r.Pos);
                     w.Write(r.Depth);
+                    w.Write(r.Level);
                     w.Write(r.TargetEnemyId);
                 }
 
@@ -143,7 +146,9 @@ namespace Game.Core
                         s.Enemies.Add(new EnemyState
                         {
                             Id = r.ReadInt32(), DefId = ReadString(r), Pos = ReadVec(r), Hp = r.ReadSingle(),
-                            Radius = r.ReadSingle(), Substance = ReadHeld(r), InnateSubstance = ReadString(r)
+                            Radius = r.ReadSingle(), Substance = ReadHeld(r), InnateSubstance = ReadString(r),
+                            SlowTime = r.ReadSingle(), SlowFactor = r.ReadSingle(), FreezeTime = r.ReadSingle(),
+                            DotTime = r.ReadSingle(), DotDps = r.ReadSingle(), VulnTime = r.ReadSingle(), VulnMul = r.ReadSingle(), BehaviorTimer = r.ReadSingle()
                         });
 
                     n = ReadCount(r);
@@ -178,7 +183,7 @@ namespace Game.Core
                     for (int i = 0; i < n; i++)
                         s.ReactionQueue.Add(new PendingReaction
                         {
-                            ReactionId = ReadString(r), Pos = ReadVec(r), Depth = r.ReadInt32(), TargetEnemyId = r.ReadInt32()
+                            ReactionId = ReadString(r), Pos = ReadVec(r), Depth = r.ReadInt32(), Level = r.ReadInt32(), TargetEnemyId = r.ReadInt32()
                         });
 
                     s.SpawnTimer = r.ReadSingle();
@@ -231,11 +236,12 @@ namespace Game.Core
             WriteString(w, h.Id);
             w.Write(h.TimeLeft);
             w.Write(h.Depth);
+            w.Write(h.Level);
         }
 
         static Held ReadHeld(BinaryReader r)
         {
-            return new Held { Id = ReadString(r), TimeLeft = r.ReadSingle(), Depth = r.ReadInt32() };
+            return new Held { Id = ReadString(r), TimeLeft = r.ReadSingle(), Depth = r.ReadInt32(), Level = r.ReadInt32() };
         }
     }
 }

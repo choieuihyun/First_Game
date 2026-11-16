@@ -12,13 +12,21 @@ namespace Game.Data
             "max_enemies", "max_zones", "max_projectiles",
             "player_hp", "player_speed", "player_radius",
             "absorb_growth", "upgrade_max", "upgrade_damage", "upgrade_size", "tail_delay",
+            "upgrade_step", "upgrade_bolt_spread", "upgrade_cooldown_cut",
+            "charge_interval", "charge_duration", "charge_speed", "zigzag_angle", "orbit_distance", "orbit_closing", "orbit_closing_growth",
             "spawn_distance", "spawn_interval_start", "spawn_interval_min", "spawn_interval_decay_per_sec",
             "spawn_count_step_min", "enemy_hp_growth", "grid_cell_size"
         };
 
         /// <summary>물질과 적에 쓸 수 있는 모양</summary>
         public static readonly string[] Shapes =
-            { "triangle", "drop", "cloud", "bolt", "ring", "square", "circle", "diamond" };
+            { "triangle", "drop", "cloud", "bolt", "ring", "square", "circle", "diamond", "hex", "cross", "star" };
+
+        /// <summary>몸 종류가 움직이는 방식</summary>
+        public static readonly string[] Behaviors = { "chase", "charge", "zigzag", "orbit" };
+
+        /// <summary>상태 조각이 걸 수 있는 상태</summary>
+        public static readonly string[] Statuses = { "slow", "freeze", "dot", "vulnerable" };
 
         /// <summary>문제 목록을 돌려준다. 비어 있으면 정상</summary>
         public static List<string> Validate(GameData d)
@@ -32,7 +40,7 @@ namespace Game.Data
                 foreach (string key in new[] { "tick_rate", "contact_interval", "player_hp", "grid_cell_size", "spawn_count_step_min", "spawn_interval_min" })
                     if (d.Balance(key) <= 0f) p.Add("balance.csv: " + key + " 는 0 보다 커야 합니다");
                 // 개수로 쓰는 값은 1 이상이어야 한다. 0 이면 반응이 영영 처리되지 않는 식으로 조용히 망가진다
-                foreach (string key in new[] { "upgrade_max", "absorb_growth", "max_enemies", "max_zones", "max_projectiles", "max_reactions_per_tick", "chain_depth_limit" })
+                foreach (string key in new[] { "upgrade_max", "upgrade_step", "absorb_growth", "max_enemies", "max_zones", "max_projectiles", "max_reactions_per_tick", "chain_depth_limit" })
                     if (d.Balance(key) < 1f) p.Add("balance.csv: " + key + " 는 1 이상이어야 합니다");
             }
 
@@ -57,7 +65,7 @@ namespace Game.Data
                 if (v.Range <= 0f) p.Add("deliveries.csv: " + v.Id + " 의 range 는 0 보다 커야 합니다");
                 if (v.Kind == DeliveryKind.Bolt && v.Speed <= 0f) p.Add("deliveries.csv: " + v.Id + " 의 speed 는 0 보다 커야 합니다");
                 if (d.BodyForDelivery(v.Id) == null) p.Add("deliveries.csv: " + v.Id + " 를 지닌 몸 종류가 enemies.csv 에 없습니다");
-                if (v.Kind != DeliveryKind.Bolt && v.ZoneDuration <= 0f) p.Add("deliveries.csv: " + v.Id + " 의 zone_duration 은 0 보다 커야 합니다");
+                if (v.Kind == DeliveryKind.Zone && v.ZoneDuration <= 0f) p.Add("deliveries.csv: " + v.Id + " 의 zone_duration 은 0 보다 커야 합니다");
             }
 
             var pairs = new Dictionary<string, string>();
@@ -85,6 +93,18 @@ namespace Game.Data
                     if (s.Piece == EffectPiece.Chain && s.Count < 1) p.Add("effects.csv: " + e.Id + " 의 chain 은 count 가 1 이상이어야 합니다");
                     bool needsSubstance = s.Piece == EffectPiece.SpawnZone || s.Piece == EffectPiece.ApplySubstance;
                     if (needsSubstance && s.Substance == null) p.Add("effects.csv: " + e.Id + " 에 substance 가 필요합니다");
+                    if (s.Piece == EffectPiece.Push && s.Radius <= 0f) p.Add("effects.csv: " + e.Id + " 의 push 는 radius 가 0 보다 커야 합니다");
+                    if (s.Piece == EffectPiece.Push && s.Amount == 0f) p.Add("effects.csv: " + e.Id + " 의 push 는 amount 가 0 이 아니어야 합니다");
+                    if (s.Piece == EffectPiece.Status)
+                    {
+                        bool known = false;
+                        foreach (string name in Statuses) if (name == s.Status) known = true;
+                        if (!known) p.Add("effects.csv: " + e.Id + " 의 status 를 모릅니다: " + s.Status);
+                        if (s.Duration <= 0f) p.Add("effects.csv: " + e.Id + " 의 status 는 duration 이 0 보다 커야 합니다");
+                        if (s.Status == "slow" && (s.Amount <= 0f || s.Amount >= 1f)) p.Add("effects.csv: " + e.Id + " 의 slow 는 amount 가 0 과 1 사이여야 합니다 (남는 속도 비율)");
+                        if (s.Status == "vulnerable" && s.Amount <= 1f) p.Add("effects.csv: " + e.Id + " 의 vulnerable 은 amount 가 1 보다 커야 합니다 (피해 배율)");
+                        if (s.Status == "dot" && s.Amount <= 0f) p.Add("effects.csv: " + e.Id + " 의 dot 은 amount 가 0 보다 커야 합니다 (초당 피해)");
+                    }
                     if (s.Piece == EffectPiece.SpawnZone && s.Duration <= 0f) p.Add("effects.csv: " + e.Id + " 의 spawn_zone 은 duration 이 0 보다 커야 합니다");
                 }
             }
@@ -94,6 +114,9 @@ namespace Game.Data
                 if (e.Hp <= 0f) p.Add("enemies.csv: " + e.Id + " 의 hp 는 0 보다 커야 합니다");
                 if (e.Speed <= 0f) p.Add("enemies.csv: " + e.Id + " 의 speed 는 0 보다 커야 합니다");
                 if (e.Radius <= 0f) p.Add("enemies.csv: " + e.Id + " 의 radius 는 0 보다 커야 합니다");
+                bool knownBehavior = false;
+                foreach (string b in Behaviors) if (b == e.Behavior) knownBehavior = true;
+                if (!knownBehavior) p.Add("enemies.csv: " + e.Id + " 의 behavior 를 모릅니다: " + e.Behavior);
                 if (!d.IsDelivery(e.Delivery)) p.Add("enemies.csv: " + e.Id + " 의 delivery 가 없는 방식입니다: " + e.Delivery);
                 if (!IsColor(e.Color)) p.Add("enemies.csv: " + e.Id + " 의 color 는 #RRGGBB 형식이어야 합니다: " + e.Color);
                 if (!IsShape(e.Shape)) p.Add("enemies.csv: " + e.Id + " 의 shape 를 모릅니다: " + e.Shape);

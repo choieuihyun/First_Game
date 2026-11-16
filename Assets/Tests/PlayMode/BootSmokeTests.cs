@@ -18,6 +18,28 @@ namespace Game.Tests.PlayMode
             SceneManager.LoadScene("SampleScene");
             yield return null;
             yield return null;
+            // 처음에는 맵 고르기 화면이다. 테스트는 늪지로 바로 시작한다
+            Object.FindAnyObjectByType<GameBootstrap>().StartStage("swamp");
+            yield return null;
+        }
+
+        [UnityTest, Timeout(180000)]
+        public IEnumerator StartsOnStageSelect_AndPressingButton_StartsThatStage()
+        {
+            SceneManager.LoadScene("SampleScene");
+            yield return null;
+            yield return null;
+            var boot = Object.FindAnyObjectByType<GameBootstrap>();
+            var hud = Object.FindAnyObjectByType<Hud>();
+            Assert.IsNotNull(boot);
+            Assert.IsNull(boot.LoadError);
+            Assert.IsNull(boot.Sim, "맵을 고르기 전에는 판이 없어야 한다");
+            Assert.IsFalse(hud.PressAt(new Vector2(1f, 1f)));
+            Assert.IsTrue(hud.PressAt(hud.StageButtonRect(1).center));
+            yield return null;
+            yield return null;
+            Assert.IsNotNull(boot.Sim);
+            Assert.AreEqual("foundry", boot.Sim.State.StageId);
         }
 
         [UnityTest, Timeout(180000)]
@@ -105,7 +127,7 @@ namespace Game.Tests.PlayMode
         }
 
         [UnityTest, Timeout(180000)]
-        public IEnumerator PressingRestart_AfterDeath_StartsNewRun()
+        public IEnumerator PressingStage_AfterDeath_StartsNewRun()
         {
             yield return LoadGame();
             var boot = Object.FindAnyObjectByType<GameBootstrap>();
@@ -114,12 +136,13 @@ namespace Game.Tests.PlayMode
             float end = Time.realtimeSinceStartup + 2f;
             while (dead.Phase != RunPhase.Dead && Time.realtimeSinceStartup < end) { dead.Player.Hp = 0f; yield return null; }
             Assert.AreEqual(RunPhase.Dead, dead.Phase);
-            // 살아 있을 때는 다시 시작 자리를 눌러도 반응하지 않아야 하므로 죽은 뒤에만 누른다
-            Assert.IsTrue(hud.PressAt(hud.RestartButtonRect().center));
+            // 죽은 뒤에는 결과 화면에 맵 고르기 버튼이 뜬다. 세 번째 맵을 고른다
+            Assert.IsTrue(hud.PressAt(hud.StageButtonRect(2).center));
             yield return null;
             yield return null;
             Assert.AreNotSame(dead, boot.Sim.State);
             Assert.AreEqual(RunPhase.Playing, boot.Sim.State.Phase);
+            Assert.AreEqual("lab", boot.Sim.State.StageId);
             Assert.AreEqual(100f, boot.Sim.State.Player.Hp);
         }
 
@@ -137,6 +160,49 @@ namespace Game.Tests.PlayMode
                 yield return null;
                 Assert.AreEqual(1f, boot.RenderAlpha);
             }
+        }
+
+        [Test]
+        public void TinyDrag_IsIgnored_SoFacingDoesNotFlip()
+        {
+            // 엄지가 1~2픽셀 떨리는 정도로는 움직이지도 방향이 바뀌지도 않아야 한다
+            Assert.AreEqual(Vector2.zero, InputReader.ApplyDeadzone(new Vector2(0.02f, -0.03f)));
+            Assert.AreEqual(Vector2.zero, InputReader.ApplyDeadzone(new Vector2(0.1f, 0.1f)));
+            Assert.AreEqual(new Vector2(0.5f, 0f), InputReader.ApplyDeadzone(new Vector2(0.5f, 0f)));
+            Assert.AreEqual(1f, InputReader.ApplyDeadzone(new Vector2(3f, 4f)).magnitude, 0.001f);
+        }
+
+        [UnityTest, Timeout(180000)]
+        public IEnumerator ChoiceScreen_IgnoresTouches_ForAMomentAfterItAppears()
+        {
+            yield return LoadGame();
+            var boot = Object.FindAnyObjectByType<GameBootstrap>();
+            var hud = Object.FindAnyObjectByType<Hud>();
+            RunState state = boot.Sim.State;
+            Assert.IsFalse(hud.InputLocked);
+            state.PendingTraits.Add("gas");
+            yield return WaitForPhase(state, RunPhase.ChoosingPart, 2f);
+            yield return null;
+            // 이동하려던 터치가 창이 뜨는 순간 버튼을 누른 것으로 처리되면 안 된다
+            Assert.IsTrue(hud.InputLocked);
+            float end = Time.realtimeSinceStartup + 0.6f;
+            while (Time.realtimeSinceStartup < end) yield return null;
+            Assert.IsFalse(hud.InputLocked);
+        }
+
+        [UnityTest, Timeout(180000)]
+        public IEnumerator ChoiceText_WarnsWhenUpgradeWouldBeLost()
+        {
+            yield return LoadGame();
+            var boot = Object.FindAnyObjectByType<GameBootstrap>();
+            var hud = Object.FindAnyObjectByType<Hud>();
+            RunState state = boot.Sim.State;
+            state.Slots[BodyPart.RightArm].DeliveryId = "bolt";
+            state.Slots[BodyPart.RightArm].DeliveryLevel = 4;
+            yield return null;
+            StringAssert.Contains("사라", hud.ChoiceText(BodyPart.RightArm, "cloud"));
+            StringAssert.Contains("강화", hud.ChoiceText(BodyPart.RightArm, "bolt"));
+            StringAssert.DoesNotContain("사라", hud.ChoiceText(BodyPart.LeftArm, "cloud"));
         }
     }
 }

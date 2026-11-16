@@ -12,6 +12,8 @@ namespace Game.Core
         public float TimeLeft;
         /// <summary>몇 단계 연쇄로 생긴 물질인지. 마법, 지형, 적이 원래 지닌 것은 0</summary>
         public int Depth;
+        /// <summary>물질 강화 단계. 반응이 일어나면 이 단계만큼 결과가 세진다. 0 은 1단계로 본다</summary>
+        public int Level;
 
         public bool IsEmpty => Id == null;
     }
@@ -48,6 +50,19 @@ namespace Game.Core
         public Held Substance;
         /// <summary>처음부터 지닌 물질. 잡았을 때 포식 게이지는 이것으로 센다. 없으면 null</summary>
         public string InnateSubstance;
+        /// <summary>느려짐. 남은 시간과 남는 속도 비율</summary>
+        public float SlowTime;
+        public float SlowFactor;
+        /// <summary>얼어서 움직이지도 공격하지도 못하는 남은 시간</summary>
+        public float FreezeTime;
+        /// <summary>지속 피해. 남은 시간과 초당 피해</summary>
+        public float DotTime;
+        public float DotDps;
+        /// <summary>약화. 남은 시간과 받는 피해 배율</summary>
+        public float VulnTime;
+        public float VulnMul;
+        /// <summary>몸 종류의 행동이 쓰는 시계. 돌진 주기를 잰다</summary>
+        public float BehaviorTimer;
     }
 
     public sealed class ProjectileState
@@ -95,6 +110,8 @@ namespace Game.Core
         public string ReactionId;
         public Vector2 Pos;
         public int Depth;
+        /// <summary>반응한 두 물질 중 높은 쪽의 강화 단계</summary>
+        public int Level;
         /// <summary>반응이 일어난 적. 없으면 -1</summary>
         public int TargetEnemyId;
     }

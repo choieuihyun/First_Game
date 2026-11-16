@@ -4,3 +4,4 @@
 
 [2026-11-16] [auto] [수정: balance.csv,BootSmokeTests.cs,CsvTable.cs 외 39개]
 [2026-11-16] [auto] [수정: AbsorbTests.cs,balance.csv,BodyPartTests.cs 외 27개]
+[2026-11-16] [auto] [수정: AbsorbTests.cs,balance.csv,BalanceBotTests.cs 외 25개]

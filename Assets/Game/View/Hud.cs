@@ -12,6 +12,8 @@ namespace Game.View
         const float DesignWidth = 540f;
         const float ReactionShowSeconds = 2f;
         const int GaugesPerRow = 4;
+        // 고르는 화면이 뜬 직후 이만큼은 누름을 받지 않는다. 이동하려던 터치가 버튼으로 처리되는 것을 막는다
+        const float InputLockSeconds = 0.4f;
 
         static readonly string[] PartNames = { "왼팔", "오른팔", "꼬리" };
 
@@ -21,9 +23,14 @@ namespace Game.View
         GUIStyle title;
         GUIStyle button;
         int pendingChoice = TickInput.NoChoice;
-        bool pendingRestart;
+        string pendingStage;
         string lastReaction;
         float lastReactionTime = -100f;
+        int lastScreenKey;
+        float lockStart = -100f;
+
+        /// <summary>고르는 화면이 방금 떠서 누름을 받지 않는 중인지</summary>
+        public bool InputLocked => Time.unscaledTime - lockStart < InputLockSeconds;
 
         /// <summary>그릴 판. 없으면 에러 글자만 그린다</summary>
         public Simulation Sim;
@@ -47,6 +54,12 @@ namespace Game.View
             lastReactionTime = Time.unscaledTime;
         }
 
+        /// <summary>새 판을 시작할 때 지난 판의 반응 이름을 지운다</summary>
+        public void ClearReaction()
+        {
+            lastReaction = null;
+        }
+
         /// <summary>붙일 부위 선택을 기록한다. 부위 번호 또는 TickInput.Discard</summary>
         public void ChoosePart(int choice)
         {
@@ -61,13 +74,16 @@ namespace Game.View
             return choice;
         }
 
-        /// <summary>다시 시작 버튼을 눌렀는지 한 번만 돌려준다</summary>
-        public bool ConsumeRestart()
+        /// <summary>플레이어가 고른 맵 id 를 한 번만 돌려준다. 고르지 않았으면 null</summary>
+        public string ConsumeStageChoice()
         {
-            bool restart = pendingRestart;
-            pendingRestart = false;
-            return restart;
+            string stage = pendingStage;
+            pendingStage = null;
+            return stage;
         }
+
+        /// <summary>맵을 고르는 화면이 떠 있는지. 판이 없거나 죽은 뒤다</summary>
+        bool ChoosingStage => data != null && (State == null || State.Phase == RunPhase.Dead);
 
         // 화면 배치는 가로 DesignWidth 기준 좌표로 한다. 왼쪽 위가 원점이다
         float DesignScale => Screen.width / DesignWidth;
@@ -87,16 +103,27 @@ namespace Game.View
             return new Rect(40f, ChoicePanelTop + 95f + BodyPart.Count * 88f, DesignWidth - 80f, 60f);
         }
 
-        /// <summary>다시 시작 버튼의 자리</summary>
-        public Rect RestartButtonRect()
+        /// <summary>맵 고르기 버튼의 자리. 죽은 뒤에는 결과 글자 아래에 놓인다</summary>
+        public Rect StageButtonRect(int index)
         {
-            return new Rect(40f, ResultPanelTop + 220f, DesignWidth - 80f, 70f);
+            float top = State == null ? DesignHeight / 2f - 120f : ResultPanelTop + 190f;
+            return new Rect(40f, top + index * 84f, DesignWidth - 80f, 72f);
         }
 
         /// <summary>배치 좌표의 한 점을 눌렀을 때의 처리. 버튼을 눌렀으면 true</summary>
         public bool PressAt(Vector2 designPoint)
         {
             RunState state = State;
+            if (ChoosingStage)
+            {
+                for (int i = 0; i < data.Stages.Count; i++)
+                {
+                    if (!StageButtonRect(i).Contains(designPoint)) continue;
+                    pendingStage = data.Stages[i].Id;
+                    return true;
+                }
+                return false;
+            }
             if (state == null) return false;
             if (state.Phase == RunPhase.ChoosingPart && state.PendingTraits.Count > 0)
             {
@@ -108,11 +135,6 @@ namespace Game.View
                 }
                 if (DiscardButtonRect().Contains(designPoint)) { ChoosePart(TickInput.Discard); return true; }
             }
-            else if (state.Phase == RunPhase.Dead && RestartButtonRect().Contains(designPoint))
-            {
-                pendingRestart = true;
-                return true;
-            }
             return false;
         }
 
@@ -121,17 +143,37 @@ namespace Game.View
         void Update()
         {
             RunState state = State;
-            if (state == null) return;
+            if (data == null) return;
 
-            Pointer pointer = Pointer.current;
-            if (pointer != null && pointer.press.wasPressedThisFrame)
+            // 고르는 화면이 새로 뜨거나 다음 특징으로 넘어가면 잠깐 누름을 막는다
+            int screenKey = 0;
+            if (state != null && state.Phase == RunPhase.ChoosingPart) screenKey = state.PendingTraits.Count;
+            else if (state != null && state.Phase == RunPhase.Dead) screenKey = -1;
+            if (screenKey != lastScreenKey && screenKey != 0) lockStart = Time.unscaledTime;
+            lastScreenKey = screenKey;
+            if (InputLocked) return;
+
+            // 이동하느라 한 손가락을 누르고 있어도 다른 손가락으로 버튼을 누를 수 있게 모든 터치를 본다
+            Touchscreen touch = Touchscreen.current;
+            if (touch != null)
             {
-                Vector2 screen = pointer.position.ReadValue();
-                PressAt(new Vector2(screen.x / DesignScale, (Screen.height - screen.y) / DesignScale));
+                for (int i = 0; i < touch.touches.Count; i++)
+                    if (touch.touches[i].press.wasPressedThisFrame) PressAtScreen(touch.touches[i].position.ReadValue());
             }
+            Mouse mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame) PressAtScreen(mouse.position.ReadValue());
 
             Keyboard kb = Keyboard.current;
             if (kb == null) return;
+            if (ChoosingStage)
+            {
+                // 에디터에서 편하게 쓰는 키. 숫자는 맵 번호, R 은 같은 맵 다시
+                if (kb.digit1Key.wasPressedThisFrame && data.Stages.Count > 0) pendingStage = data.Stages[0].Id;
+                if (kb.digit2Key.wasPressedThisFrame && data.Stages.Count > 1) pendingStage = data.Stages[1].Id;
+                if (kb.digit3Key.wasPressedThisFrame && data.Stages.Count > 2) pendingStage = data.Stages[2].Id;
+                if (state != null && kb.rKey.wasPressedThisFrame) pendingStage = state.StageId;
+                return;
+            }
             if (state.Phase == RunPhase.ChoosingPart)
             {
                 // 에디터에서 편하게 쓰는 키. 1 왼팔, 2 오른팔, 3 꼬리, X 버리기
@@ -140,10 +182,12 @@ namespace Game.View
                 if (kb.digit3Key.wasPressedThisFrame) ChoosePart(BodyPart.Tail);
                 if (kb.xKey.wasPressedThisFrame) ChoosePart(TickInput.Discard);
             }
-            else if (state.Phase == RunPhase.Dead && (kb.rKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
-            {
-                pendingRestart = true;
-            }
+
+        }
+
+        void PressAtScreen(Vector2 screen)
+        {
+            PressAt(new Vector2(screen.x / DesignScale, (Screen.height - screen.y) / DesignScale));
         }
 
         /// <summary>특징의 화면 이름. 방식은 그것을 지닌 몸 종류 이름으로 부른다</summary>
@@ -172,7 +216,7 @@ namespace Game.View
         }
 
         /// <summary>이 특징을 그 부위에 붙이면 무슨 일이 일어나는지</summary>
-        string ChoiceText(int part, string trait)
+        public string ChoiceText(int part, string trait)
         {
             SpellSlot slot = Sim.State.Slots[part];
             bool isDelivery = data.IsDelivery(trait);
@@ -186,7 +230,15 @@ namespace Game.View
                     ? PartNames[part] + " (이미 최대 단계)"
                     : PartNames[part] + " 강화 (" + level + "단계 → " + (level + 1) + "단계)";
             }
-            else head = PartNames[part] + "에 붙이기";
+            else
+            {
+                head = PartNames[part] + "에 붙이기";
+                // 다른 특징으로 바꾸면 쌓아 둔 강화가 사라진다. 되돌릴 수 없으니 미리 알린다
+                int lost = isDelivery ? slot.DeliveryLevel : slot.SubstanceLevel;
+                bool hasOld = isDelivery ? slot.DeliveryId != null : slot.SubstanceId != null;
+                if (hasOld && lost > 1)
+                    return head + "\n지금의 " + (isDelivery ? data.Delivery(slot.DeliveryId).Name : data.Substance(slot.SubstanceId).Name) + " " + lost + "단계가 사라집니다";
+            }
             return head + "\n지금: " + PartText(slot);
         }
 
@@ -213,7 +265,13 @@ namespace Game.View
                 return;
             }
             RunState state = State;
-            if (state == null || data == null) return;
+            if (data == null) return;
+            if (state == null)
+            {
+                GUI.Label(new Rect(0, h / 2 - 220, w, 60), "어디로 갈까", title);
+                DrawStageButtons();
+                return;
+            }
 
             float hpMax = data.Balance("player_hp");
             GUI.color = new Color(0f, 0f, 0f, 0.5f);
@@ -227,7 +285,7 @@ namespace Game.View
                 string.Format("{0:00}:{1:00}   먹은 수 {2}   반응 {3}", seconds / 60, seconds % 60, state.Kills, state.ReactionCount), label);
             DrawGauges(w, state);
             if (lastReaction != null && Time.unscaledTime - lastReactionTime < ReactionShowSeconds)
-                GUI.Label(new Rect(0, 160, w, 40), lastReaction + "!", title);
+                GUI.Label(new Rect(0, 190, w, 40), lastReaction + "!", title);
 
             Box(new Rect(0, h - 110, w, 110));
             for (int i = 0; i < state.Slots.Length; i++)
@@ -276,11 +334,27 @@ namespace Game.View
         void DrawResult(float w, int seconds, RunState state)
         {
             float top = ResultPanelTop;
-            Box(new Rect(20, top, w - 40, 320));
+            Box(new Rect(20, top, w - 40, 200 + data.Stages.Count * 84));
             GUI.Label(new Rect(20, top + 10, w - 40, 60), "쓰러졌습니다", title);
-            GUI.Label(new Rect(40, top + 80, w - 80, 120),
+            GUI.Label(new Rect(40, top + 76, w - 80, 110),
                 string.Format("버틴 시간 {0:00}:{1:00}\n먹은 수 {2}\n반응 {3}", seconds / 60, seconds % 60, state.Kills, state.ReactionCount), label);
-            GUI.Box(RestartButtonRect(), "다시 시작", button);
+            DrawStageButtons();
+        }
+
+        /// <summary>맵 고르기 버튼. 그 맵에서 얻을 수 있는 물질을 함께 적어 무엇을 만들 수 있을지 짐작하게 한다</summary>
+        void DrawStageButtons()
+        {
+            for (int i = 0; i < data.Stages.Count; i++)
+            {
+                StageDef stage = data.Stages[i];
+                string substances = "";
+                foreach (var a in stage.Absorb)
+                {
+                    if (data.IsDelivery(a.Key)) continue;
+                    substances += (substances.Length > 0 ? ", " : "") + data.Substance(a.Key).Name;
+                }
+                GUI.Box(StageButtonRect(i), stage.Name + "\n" + substances, button);
+            }
         }
 
         static void Box(Rect rect)

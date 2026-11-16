@@ -114,6 +114,8 @@ namespace Game.Data
                 {
                     case "bolt": kind = DeliveryKind.Bolt; break;
                     case "zone": kind = DeliveryKind.Zone; break;
+                    case "beam": kind = DeliveryKind.Beam; break;
+                    case "nova": kind = DeliveryKind.Nova; break;
                     default: throw t.Error(r, "kind", "모르는 방식 종류입니다: " + t.Get(r, "kind"));
                 }
                 var def = new DeliveryDef(t.Get(r, "id"), t.Get(r, "name"), kind, t.GetFloat(r, "cooldown"),
@@ -153,10 +155,13 @@ namespace Game.Data
                     case "spawn_zone": piece = EffectPiece.SpawnZone; break;
                     case "explode": piece = EffectPiece.Explode; break;
                     case "chain": piece = EffectPiece.Chain; break;
+                    case "status": piece = EffectPiece.Status; break;
+                    case "push": piece = EffectPiece.Push; break;
                     default: throw t.Error(r, "piece", "모르는 효과 조각입니다: " + t.Get(r, "piece"));
                 }
                 var step = new EffectStep(piece, t.GetFloatOr(r, "amount", 0f), t.GetFloatOr(r, "radius", 0f),
-                    (int)t.GetFloatOr(r, "count", 0f), OrNull(t.Get(r, "substance")), t.GetFloatOr(r, "duration", 0f));
+                    (int)t.GetFloatOr(r, "count", 0f), OrNull(t.Get(r, "substance")), t.GetFloatOr(r, "duration", 0f),
+                    t.HasColumn("status") ? OrNull(t.Get(r, "status")) : null);
                 if (!steps.ContainsKey(id)) { steps[id] = new List<KeyValuePair<float, EffectStep>>(); order.Add(id); }
                 steps[id].Add(new KeyValuePair<float, EffectStep>(t.GetFloat(r, "order"), step));
             }
@@ -184,7 +189,7 @@ namespace Game.Data
         {
             for (int r = 0; r < t.RowCount; r++)
             {
-                var def = new EnemyDef(t.Get(r, "id"), t.Get(r, "name"), t.Get(r, "delivery"), t.GetFloat(r, "hp"), t.GetFloat(r, "speed"),
+                var def = new EnemyDef(t.Get(r, "id"), t.Get(r, "name"), t.Get(r, "delivery"), t.Get(r, "behavior"), t.GetFloat(r, "hp"), t.GetFloat(r, "speed"),
                     t.GetFloat(r, "radius"), t.GetFloat(r, "contact_dps"), t.Get(r, "color"), t.Get(r, "shape"));
                 AddUnique(t, r, enemyById, def.Id, def);
                 enemies.Add(def);

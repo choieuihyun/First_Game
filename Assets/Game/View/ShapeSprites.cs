@@ -65,6 +65,19 @@ namespace Game.View
                         if (Circle(x, y, -0.45f, -0.1f, 0.45f) || Circle(x, y, 0.45f, -0.1f, 0.45f) || Circle(x, y, 0f, 0.25f, 0.5f)) return true;
                         return y >= -0.55f && y <= -0.1f && Mathf.Abs(x) <= 0.45f;
                     };
+                case "hex":
+                    return (x, y) => Mathf.Max(Mathf.Abs(x) * 0.866f + Mathf.Abs(y) * 0.5f, Mathf.Abs(y)) <= 0.9f;
+                case "cross":
+                    return (x, y) => (Mathf.Abs(x) <= 0.3f && Mathf.Abs(y) <= 0.95f) || (Mathf.Abs(y) <= 0.3f && Mathf.Abs(x) <= 0.95f);
+                case "star":
+                    return (x, y) =>
+                    {
+                        // 다섯 갈래 별. 각도에 따라 반지름이 들쭉날쭉하다
+                        float r = Mathf.Sqrt(x * x + y * y);
+                        float theta = Mathf.Atan2(y, x) - Mathf.PI / 2f;
+                        float spike = Mathf.Abs(Mathf.Cos(2.5f * theta));
+                        return r <= 0.4f + 0.55f * spike * spike * spike;
+                    };
                 case "bolt":
                     return (x, y) =>
                     {

@@ -20,6 +20,7 @@ namespace Game.View
             public Vector2 Pos;
             public Vector2 Pos2;
             public float Radius;
+            public float Width;
             public float Age;
             public float Duration;
             public Color Color;
@@ -28,6 +29,7 @@ namespace Game.View
         GameData data;
         Camera cam;
         Transform poolRoot;
+        Transform decor;
         readonly List<SpriteRenderer> pool = new List<SpriteRenderer>();
         int cursor;
         readonly List<Fx> effects = new List<Fx>();
@@ -39,8 +41,8 @@ namespace Game.View
         Vector2 currentPlayer;
         int lastTick = -1;
 
-        /// <summary>그릴 준비를 한다. 바닥 점과 맵 경계를 만든다</summary>
-        public void Init(GameData gameData, StageDef stage)
+        /// <summary>그릴 준비를 한다. 카메라와 그림 풀을 만든다</summary>
+        public void Init(GameData gameData)
         {
             data = gameData;
             cam = Camera.main;
@@ -55,9 +57,17 @@ namespace Game.View
 
             poolRoot = new GameObject("Pool").transform;
             poolRoot.SetParent(transform, false);
+        }
 
-            var decor = new GameObject("Decor").transform;
+        /// <summary>맵이 바뀌면 바닥 점과 경계를 그 맵에 맞게 다시 만든다</summary>
+        public void SetStage(StageDef stage)
+        {
+            if (decor != null) Destroy(decor.gameObject);
+            decor = new GameObject("Decor").transform;
             decor.SetParent(transform, false);
+            // 지형 물질의 색을 바닥에 살짝 입혀 맵마다 분위기가 다르게 보이게 한다
+            Color tint = stage.TerrainSubstance != null ? ShapeSprites.ParseColor(data.Substance(stage.TerrainSubstance).Color) : Color.white;
+            cam.backgroundColor = Color.Lerp(new Color(0.08f, 0.09f, 0.1f), tint, 0.08f);
             // 움직임이 보이도록 바닥에 점을 깔아 둔다. 위치는 꾸밈이라 판의 시드와 상관없다
             var random = new System.Random(1);
             int dots = Mathf.RoundToInt(stage.Width * stage.Height * 0.4f);
@@ -71,6 +81,7 @@ namespace Game.View
             MakeStatic(decor, "Border", "square", border, new Vector2(stage.Width / 2f, stage.Height), new Vector2(stage.Width, 0.12f), -9);
             MakeStatic(decor, "Border", "square", border, new Vector2(0f, stage.Height / 2f), new Vector2(0.12f, stage.Height), -9);
             MakeStatic(decor, "Border", "square", border, new Vector2(stage.Width, stage.Height / 2f), new Vector2(0.12f, stage.Height), -9);
+            Clear();
         }
 
         static void MakeStatic(Transform parent, string name, string shape, Color color, Vector2 pos, Vector2 scale, int order)
@@ -103,7 +114,11 @@ namespace Game.View
                 if (e.Type == RunEventType.Explosion)
                     effects.Add(new Fx { Pos = V(e.Pos), Radius = e.Radius, Duration = ExplosionSeconds, Color = new Color(1f, 0.75f, 0.35f) });
                 else if (e.Type == RunEventType.ChainLink)
-                    effects.Add(new Fx { IsLine = true, Pos = V(e.Pos), Pos2 = V(e.Pos2), Duration = ChainSeconds, Color = new Color(1f, 0.95f, 0.3f) });
+                    effects.Add(new Fx { IsLine = true, Pos = V(e.Pos), Pos2 = V(e.Pos2), Width = 0.12f, Duration = ChainSeconds, Color = new Color(1f, 0.95f, 0.3f) });
+                else if (e.Type == RunEventType.Beam)
+                    effects.Add(new Fx { IsLine = true, Pos = V(e.Pos), Pos2 = V(e.Pos2), Width = Mathf.Max(0.12f, e.Radius * 2f), Duration = 0.2f, Color = SubstanceColor(e.Id) });
+                else if (e.Type == RunEventType.Nova)
+                    effects.Add(new Fx { Pos = V(e.Pos), Radius = e.Radius, Duration = 0.3f, Color = SubstanceColor(e.Id) });
             }
         }
 
@@ -132,6 +147,8 @@ namespace Game.View
                 // 몸 종류는 윤곽 모양으로, 처음부터 지닌 물질은 몸 색으로 보여 준다
                 string bodyColor = e.InnateSubstance != null ? data.Substance(e.InnateSubstance).Color : def.Color;
                 Draw(def.Shape, ShapeSprites.ParseColor(bodyColor), pos, e.Radius * 2.2f, 2);
+                // 얼어붙은 적은 얼음 껍질에 갇힌 것처럼 보인다
+                if (e.FreezeTime > 0f) Draw("hex", new Color(0.75f, 0.95f, 1f, 0.55f), pos, e.Radius * 3f, 3);
                 if (!e.Substance.IsEmpty)
                 {
                     // 묻은 물질은 색과 모양 둘 다로 보여 준다
@@ -229,7 +246,7 @@ namespace Game.View
                 {
                     Vector2 d = fx.Pos2 - fx.Pos;
                     SpriteRenderer line = Draw("square", WithAlpha(fx.Color, 1f - t), (fx.Pos + fx.Pos2) / 2f, 1f, 6);
-                    line.transform.localScale = new Vector3(d.magnitude / 0.9f, 0.12f, 1f);
+                    line.transform.localScale = new Vector3(d.magnitude / 0.9f, fx.Width, 1f);
                     line.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
                 }
                 else
@@ -259,6 +276,11 @@ namespace Game.View
             t.rotation = Quaternion.identity;
             t.localScale = new Vector3(scale, scale, 1f);
             return sr;
+        }
+
+        Color SubstanceColor(string substanceId)
+        {
+            return substanceId != null ? ShapeSprites.ParseColor(data.Substance(substanceId).Color) : Color.white;
         }
 
         static Color WithAlpha(Color c, float a)

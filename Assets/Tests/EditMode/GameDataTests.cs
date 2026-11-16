@@ -11,7 +11,7 @@ namespace Game.Tests
         {
             var d = TestData.Load();
             Assert.IsEmpty(GameDataValidator.Validate(d));
-            Assert.AreEqual(5, d.Substances.Count);
+            Assert.AreEqual(10, d.Substances.Count);
             Assert.AreEqual(30f, d.Balance("tick_rate"));
         }
 
@@ -40,13 +40,13 @@ namespace Game.Tests
         public void Stage_ParsesEnemiesAndAbsorbList()
         {
             var s = TestData.Load().Stage("swamp");
-            Assert.AreEqual(8, s.Enemies.Count);
+            Assert.AreEqual(10, s.Enemies.Count);
             Assert.AreEqual("slime", s.Enemies[0].Body);
             Assert.AreEqual("water", s.Enemies[0].Substance);
             Assert.AreEqual(5f, s.Enemies[0].Weight);
             Assert.AreEqual("slime", s.Enemies[2].Body);
             Assert.IsNull(s.Enemies[2].Substance);
-            Assert.AreEqual(7, s.Absorb.Count);
+            Assert.AreEqual(8, s.Absorb.Count);
             Assert.AreEqual("pool", s.Absorb[0].Key);
             Assert.AreEqual(10f, s.Absorb[0].Value);
             Assert.AreEqual(2, s.AbsorbIndex("cloud"));
@@ -79,8 +79,8 @@ namespace Game.Tests
         public void DuplicateId_Throws()
         {
             var ex = Assert.Throws<DataException>(() => TestData.LoadWith("enemies",
-                "id,name,delivery,hp,speed,radius,contact_dps,color,shape\n" +
-                "horn,가,bolt,20,1,0.3,1,#FFFFFF,square\nhorn,나,bolt,20,1,0.3,1,#FFFFFF,square\n"));
+                "id,name,delivery,behavior,hp,speed,radius,contact_dps,color,shape\n" +
+                "horn,가,bolt,chase,20,1,0.3,1,#FFFFFF,square\nhorn,나,bolt,chase,20,1,0.3,1,#FFFFFF,square\n"));
             Assert.That(ex.Message, Does.Contain("enemies").And.Contain("horn"));
         }
 
@@ -117,10 +117,40 @@ namespace Game.Tests
         [Test]
         public void TraitNoEnemyCarries_Throws()
         {
-            // 불을 지닌 적을 빼면 불은 얻을 수 없는 특징이 된다
-            string text = TestData.ReadCsv("stages").Replace("horn:fire:1|", "");
+            // 흡수 목록에 불이 있는데 불을 지닌 적이 나오지 않으면 얻을 수 없는 특징이다
+            string text = "id,name,width,height,absorb,enemies,terrain_substance,terrain_count,terrain_radius,start_delivery\n" +
+                          "only,하나,40,40,bolt:5|fire:5,horn::1,,0,0,bolt\n";
             var ex = Assert.Throws<DataException>(() => TestData.LoadWith("stages", text));
             Assert.That(ex.Message, Does.Contain("fire"));
+        }
+
+        [Test]
+        public void ThreeStages_EachWithDifferentSubstances()
+        {
+            var d = TestData.Load();
+            Assert.AreEqual(3, d.Stages.Count);
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (StageDef stage in d.Stages)
+            {
+                string key = "";
+                foreach (var a in stage.Absorb) if (!d.IsDelivery(a.Key)) key += a.Key + ",";
+                Assert.IsTrue(seen.Add(key), stage.Id + " 의 물질 구성이 다른 맵과 같다");
+                Assert.GreaterOrEqual(stage.Absorb.Count, 8, stage.Id);
+            }
+        }
+
+        [Test]
+        public void EveryStage_CanTriggerSeveralReactions()
+        {
+            // 맵에서 얻을 수 있는 물질끼리만으로도 반응이 넷 이상 있어야 한다
+            var d = TestData.Load();
+            foreach (StageDef stage in d.Stages)
+            {
+                int count = 0;
+                foreach (ReactionDef r in d.Reactions)
+                    if (stage.AbsorbIndex(r.A) >= 0 && stage.AbsorbIndex(r.B) >= 0) count++;
+                Assert.GreaterOrEqual(count, 4, stage.Id);
+            }
         }
 
         [Test]
@@ -143,7 +173,7 @@ namespace Game.Tests
         public void EmptyRequiredNumber_Throws()
         {
             var ex = Assert.Throws<DataException>(() => TestData.LoadWith("enemies",
-                "id,name,delivery,hp,speed,radius,contact_dps,color,shape\nhorn,가,bolt,,1,0.3,1,#FFFFFF,square\n"));
+                "id,name,delivery,behavior,hp,speed,radius,contact_dps,color,shape\nhorn,가,bolt,chase,,1,0.3,1,#FFFFFF,square\n"));
             Assert.That(ex.Message, Does.Contain("enemies").And.Contain("hp"));
         }
 
@@ -197,6 +227,35 @@ namespace Game.Tests
             string text = TestData.ReadCsv("deliveries").TrimEnd() + "\nfire,불탄,bolt,1,1,1,0.2,5,0\n";
             var ex = Assert.Throws<DataException>(() => TestData.LoadWith("deliveries", text));
             Assert.That(ex.Message, Does.Contain("fire"));
+        }
+
+        [Test]
+        public void EveryReaction_IsReachableOnSomeStage()
+        {
+            // 맵에 있는 물질 (적, 지형, 흡수) 에서 시작해 반응 결과물까지 따라가며, 일어날 수 있는 반응을 모은다
+            var d = TestData.Load();
+            var reachable = new System.Collections.Generic.HashSet<string>();
+            foreach (StageDef stage in d.Stages)
+            {
+                var present = new System.Collections.Generic.HashSet<string>();
+                foreach (StageEnemy e in stage.Enemies) if (e.Substance != null) present.Add(e.Substance);
+                if (stage.TerrainSubstance != null) present.Add(stage.TerrainSubstance);
+                foreach (var a in stage.Absorb) if (!d.IsDelivery(a.Key)) present.Add(a.Key);
+                bool grew = true;
+                while (grew)
+                {
+                    grew = false;
+                    foreach (ReactionDef r in d.Reactions)
+                    {
+                        if (!present.Contains(r.A) || !present.Contains(r.B)) continue;
+                        reachable.Add(r.Id);
+                        foreach (EffectStep step in d.Effect(r.EffectId).Steps)
+                            if (step.Substance != null && present.Add(step.Substance)) grew = true;
+                    }
+                }
+            }
+            foreach (ReactionDef r in d.Reactions)
+                Assert.IsTrue(reachable.Contains(r.Id), r.Id + " (" + r.Name + ") 는 어느 맵에서도 일어날 수 없다");
         }
     }
 }

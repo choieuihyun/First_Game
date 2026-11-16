@@ -26,7 +26,7 @@ namespace Game.Tests
             Assert.IsNull(s.Slots[BodyPart.LeftArm].DeliveryId);
             Assert.IsNull(s.Slots[BodyPart.Tail].DeliveryId);
             Assert.AreEqual(new Vector2(0f, 1f), s.Player.Facing);
-            Assert.AreEqual(7, s.AbsorbCount.Length);
+            Assert.AreEqual(8, s.AbsorbCount.Length);
             Assert.AreEqual(8, s.Zones.Count);
             foreach (ZoneState z in s.Zones)
             {
@@ -151,7 +151,10 @@ namespace Game.Tests
             sim.Tick(TickInput.None);
             Assert.Greater(sim.State.Enemies.Count, 0);
             EnemyState e = sim.State.Enemies[0];
-            Assert.AreEqual(data.Enemy(e.DefId).Hp * 9f, e.Hp, 0.5f);
+            // 10분째의 체력 배율은 1 + 계수 x 10 x 10 이다
+            float expected = data.Enemy(e.DefId).Hp * (1f + data.Balance("enemy_hp_growth") * 100f);
+            Assert.AreEqual(expected, e.Hp, 0.5f);
+            Assert.Greater(e.Hp, data.Enemy(e.DefId).Hp * 2f);
         }
 
         [Test]
@@ -186,8 +189,8 @@ namespace Game.Tests
         {
             string stages = TestData.ReadCsv("stages").TrimEnd();
             GameData changed = TestData.LoadWith("stages", stages.Substring(0, stages.Length - 4) + "pool\n");
-            Assert.AreEqual("pool", changed.Stage("swamp").StartDelivery);
-            Assert.AreEqual("pool", RunFactory.NewRun(changed, "swamp", 1).Slots[1].DeliveryId);
+            Assert.AreEqual("pool", changed.Stage("lab").StartDelivery);
+            Assert.AreEqual("pool", RunFactory.NewRun(changed, "lab", 1).Slots[1].DeliveryId);
         }
     }
 }

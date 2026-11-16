@@ -57,7 +57,7 @@ namespace Game.Tests
         {
             Eat("horn", null, 2);
             Assert.AreEqual(2, Count("bolt"));
-            Assert.AreEqual(0, Count("fire"));
+            Assert.AreEqual(0, Count("ice"));
             Assert.AreEqual(0, Count("water"));
         }
 
@@ -65,10 +65,10 @@ namespace Game.Tests
         public void SubstanceAppliedByPlayer_DoesNotCount()
         {
             EnemyState e = SimHelpers.AddEnemy(sim, data, "horn", new Vector2(1f, 1f));
-            e.Substance = new Held { Id = "fire", TimeLeft = 3f };
+            e.Substance = new Held { Id = "gas", TimeLeft = 3f };
             e.Hp = 0f;
             sim.Tick(TickInput.None);
-            Assert.AreEqual(0, Count("fire"));
+            Assert.AreEqual(0, Count("gas"));
             Assert.AreEqual(1, Count("bolt"));
         }
 
@@ -111,17 +111,17 @@ namespace Game.Tests
         [Test]
         public void ChoosingPart_AttachesTrait_AndResumes()
         {
-            Eat("horn", "fire", 5);
-            Assert.AreEqual(new List<string> { "bolt", "fire" }, state.PendingTraits);
+            Eat("horn", "lightning", 5);
+            Assert.AreEqual(new List<string> { "bolt", "lightning" }, state.PendingTraits);
             sim.Tick(Choose(BodyPart.Tail));
             Assert.AreEqual(RunPhase.ChoosingPart, state.Phase);
-            Assert.IsTrue(sim.Events.Exists(e => e.Type == RunEventType.TraitPending && e.Id == "fire"));
+            Assert.IsTrue(sim.Events.Exists(e => e.Type == RunEventType.TraitPending && e.Id == "lightning"));
             sim.Tick(Choose(BodyPart.LeftArm));
             Assert.AreEqual(RunPhase.Playing, state.Phase);
             Assert.AreEqual("bolt", state.Slots[BodyPart.Tail].DeliveryId);
             Assert.AreEqual(1, state.Slots[BodyPart.Tail].DeliveryLevel);
             Assert.IsNull(state.Slots[BodyPart.Tail].SubstanceId);
-            Assert.AreEqual("fire", state.Slots[BodyPart.LeftArm].SubstanceId);
+            Assert.AreEqual("lightning", state.Slots[BodyPart.LeftArm].SubstanceId);
             Assert.AreEqual(1, state.Slots[BodyPart.LeftArm].SubstanceLevel);
         }
 
@@ -155,6 +155,15 @@ namespace Game.Tests
             // 방식을 바꿔도 물질과 그 단계는 그대로다
             Assert.AreEqual("fire", arm.SubstanceId);
             Assert.AreEqual(2, arm.SubstanceLevel);
+        }
+
+        [Test]
+        public void TraitNotInThisStage_IsIgnored()
+        {
+            // 늪지에서는 불을 흡수할 수 없다. 불을 지닌 적을 잡아도 게이지가 없으니 아무 일도 없다
+            Eat("slime", "fire", 3);
+            Assert.AreEqual(3, Count("pool"));
+            Assert.AreEqual(0, state.PendingTraits.Count);
         }
 
         [Test]
